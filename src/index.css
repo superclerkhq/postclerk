@@ -1,0 +1,370 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+/* Held down by the pointer and able to act: browsers still mark a disabled control :active. */
+@custom-variant press (&:active:not(:disabled, [aria-disabled="true"], [data-disabled]));
+
+/* ── Theme Tokens ── */
+
+@theme inline {
+  --color-success-ink: var(--success-ink);
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+
+  /* shadcn-style neutral tokens */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-accent-subtle-foreground: var(--accent-subtle-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Brand — matches logo (#6366f1 / indigo-500) */
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-subtle: var(--brand-subtle);
+  --color-brand-deep: var(--brand-deep);
+  /* Chart series, validated as a pair for colour-blind readers in both modes. */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+
+  /* App frame — see --chrome below */
+  --color-chrome: var(--chrome);
+  --color-shelf: var(--shelf);
+
+  /* ── Surface scale ──
+   * Semantic tokens for filled (borderless) UI surfaces.
+   * Use these instead of bg-muted/40, bg-muted/60, bg-muted.
+   *
+   *   surface-base     → bg-background                         (app/root surface)
+   *   surface-soft     → tinted resting state for cards/inputs (was bg-muted/40)
+   *   surface-medium   → hover/focus of surface-soft           (was bg-muted/60)
+   *   surface-strong   → active/selected chip or list row      (was bg-muted)
+   *   surface-deep     → focused state of a filled input
+   *
+   * surface-deep steps *away* from the page in both themes (darker on light, lighter on dark),
+   * so a filled control always gets more prominent as you interact with it. Kept to a 5% shift:
+   * it is a supporting cue behind the focus hairline, not the indicator itself.
+   */
+  --color-surface-base: var(--background);
+  --color-workflow-card-border: var(--workflow-card-border);
+  --color-workflow-card-hover: var(--workflow-card-hover);
+  --color-surface-soft: color-mix(in oklch, var(--muted) 40%, transparent);
+  --color-surface-medium: color-mix(in oklch, var(--muted) 60%, transparent);
+  --color-surface-strong: var(--muted);
+  --color-surface-deep: color-mix(in oklch, var(--muted) 95%, var(--foreground) 5%);
+
+  /* Backward-compat aliases so existing components keep working */
+  --color-surface-0: var(--background);
+  --color-surface-1: var(--card);
+  --color-surface-2: var(--muted);
+  --color-surface-3: var(--border);
+  --color-border-subtle: var(--border);
+  --color-text-primary: var(--foreground);
+  --color-text-secondary: var(--muted-foreground);
+  --color-text-tertiary: var(--muted-foreground);
+  --color-text-inverse: var(--background);
+  --color-accent: var(--primary);
+  --color-accent-hover: var(--primary);
+  --color-accent-muted: var(--muted);
+  --color-accent-text: var(--foreground);
+  --color-success: oklch(0.72 0.17 162);
+  --color-warning: oklch(0.82 0.16 85);
+  --color-error: var(--destructive);
+  --color-info: oklch(0.62 0.21 260);
+
+  --font-size-2xs: 0.625rem;
+  --line-height-2xs: 0.875rem;
+}
+
+/* Sheets and their scrim. Only opacity and transform move, so the compositor keeps the motion smooth
+   while the sheet's contents mount; the panel glides a short way instead of crossing the screen. */
+@theme {
+  --animate-sheet-in: sheet-in 240ms cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-sheet-out: sheet-out 160ms cubic-bezier(0.4, 0, 1, 1) forwards;
+  --animate-scrim-in: scrim-in 240ms ease-out;
+  --animate-scrim-out: scrim-out 160ms ease-in forwards;
+
+  @keyframes sheet-in {
+    from {
+      opacity: 0;
+      transform: translate3d(24px, 0, 0);
+    }
+  }
+  @keyframes sheet-out {
+    to {
+      opacity: 0;
+      transform: translate3d(16px, 0, 0);
+    }
+  }
+  @keyframes scrim-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes scrim-out {
+    to {
+      opacity: 0;
+    }
+  }
+}
+
+/* ── Light ── */
+
+:root {
+  /* --color-success as words: it's 2.28:1 on white, and this clears 4.5:1. */
+  --success-ink: oklch(0.5 0.13 162);
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  /* Muted text sits on more than the page: the shelf (0.976), muted fills and 4% tint wells. 0.53 keeps it
+     above 4.5:1 on all of them (4.93:1 shelf, 4.53:1 well on the shelf); 0.556 only cleared white. */
+  --muted-foreground: oklch(0.53 0 0);
+  --accent-subtle: oklch(0.97 0 0);
+  --accent-subtle-foreground: oklch(0.205 0 0);
+  /* red-700. Red text sits on the shelf and inside its own 10% tint (danger buttons, error boxes); red-600
+     cleared neither (4.45:1 and 3.73:1). This clears both (5.99:1, 4.98:1) and keeps white on red at 6.42:1. */
+  --destructive: oklch(0.505 0.213 27.518);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  /* Focus indicator, sized by contrast rather than taste.
+     The neutral ramp runs 1.0 page → 0.97 fill → 0.922 border → 0.53 muted text → 0.145 ink.
+     A focus line must clear 3:1 (WCAG 2.2 §1.4.11) against BOTH the page and the filled input,
+     but must stay lighter than muted text or it out-shouts the content it frames.
+     0.62 is the lightest value that satisfies both: 3.64:1 on white, 3.34:1 on the fill,
+     against 5.28:1 for muted text. Same value works on dark (4.92:1 card, 4.15:1 fill). */
+  --ring: oklch(0.62 0 0);
+  --brand: oklch(0.585 0.233 277.117); /* indigo-500 — surface/highlight */
+  --brand-foreground: oklch(0.985 0 0);
+  --brand-subtle: oklch(0.585 0.233 277.117 / 0.1);
+  --brand-deep: oklch(0.457 0.24 277.023); /* indigo-700 — gradient bottom, richer */
+  --chart-1: #6366f1;
+  --chart-2: #eb6834;
+
+  /* App frame. The icon strip sits on --chrome; the section shelf and the page sit on an inset
+     sheet whose top-left corner is rounded against it, outlined by --chrome-edge. Light steps
+     darker away from the page, dark steps lighter, so the page is always the calmest surface.
+     Light values are Codex's own (#e9e9e9 chrome, #f7f7f7 shelf, #dcdcdc edge). */
+  --chrome: oklch(0.934 0 0);
+  --shelf: oklch(0.976 0 0);
+  --chrome-edge: oklch(0.89 0 0);
+  /* What a sticky header paints over the rows scrolling under it. Containers that change the
+     background set it as well: the agent panel sits on --shelf, sheets on --card. */
+  --surface: var(--background);
+
+  /* Presses are told by shadows alone. A raised button stands on a soft drop shadow and, pressed, trades it for
+     an inner one; rest and pressed list the same shadows in the same order, so the browser animates between them
+     instead of jumping. Light theme. */
+  --shadow-btn-primary:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22), inset 0 0 0 rgba(0, 0, 0, 0), 0 1px 2px rgba(0, 0, 0, 0.1);
+  --shadow-btn-primary-active:
+    inset 0 1px 0 rgba(255, 255, 255, 0), inset 0 1.5px 3px rgba(0, 0, 0, 0.3), 0 0 0 rgba(0, 0, 0, 0);
+  --shadow-btn-secondary:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5), inset 0 0 0 rgba(0, 0, 0, 0), 0 0 0 0.5px rgba(0, 0, 0, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.08);
+  --shadow-btn-secondary-active:
+    inset 0 1px 0 rgba(255, 255, 255, 0), inset 0 1.5px 3px rgba(0, 0, 0, 0.13), 0 0 0 0.5px rgba(0, 0, 0, 0.06),
+    0 0 0 rgba(0, 0, 0, 0);
+  /* A flat control pressed sinks into a small well: an inner shadow under its top edge over a faint shade, both
+     drawn as shadows so they land on whatever fill, hover or selection the control already shows. The leading
+     empty shadow lines up with the outer one Tailwind keeps beside rings and hairlines, so those animate too. */
+  --shadow-press:
+    0 0 #0000, inset 0 1px 2.5px rgba(0, 0, 0, 0.13),
+    inset 0 0 0 100vmax color-mix(in oklab, var(--foreground) 3%, transparent);
+
+  /* Floating panel shadow — light theme: crisp contact line + wide soft ambient */
+  --shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.04), 0 12px 32px -12px rgba(0, 0, 0, 0.09);
+
+  /* ── Workflow node tones ──
+   * One hue per node family (see workflow-node-presentation.ts). These are
+   * identity tints on a small icon chip, never fills — the canvas spends
+   * saturation on three things only: these chips, the brand selection ring,
+   * and run status. Chroma is held low (0.09–0.13) so that a graph of twenty
+   * nodes still reads as one surface rather than a palette.
+   *
+   * `-fill` is the chip background, `-ink` the glyph. Ink clears 4.5:1 on the
+   * chip fill in both themes; `entry` deliberately reuses the brand hue so the
+   * start of a workflow is the one place brand colour appears in the graph. */
+  --workflow-tone-entry-fill: oklch(0.585 0.233 277.117 / 0.09);
+  --workflow-tone-entry-ink: oklch(0.5 0.19 277.117);
+  --workflow-tone-intelligence-fill: oklch(0.6 0.16 300 / 0.09);
+  --workflow-tone-intelligence-ink: oklch(0.5 0.15 300);
+  --workflow-tone-control-fill: oklch(0.6 0.13 250 / 0.1);
+  --workflow-tone-control-ink: oklch(0.5 0.12 250);
+  --workflow-tone-waiting-fill: oklch(0.7 0.12 75 / 0.14);
+  --workflow-tone-waiting-ink: oklch(0.52 0.1 75);
+  --workflow-tone-data-fill: oklch(0.65 0.1 195 / 0.13);
+  --workflow-tone-data-ink: oklch(0.5 0.09 195);
+  --workflow-tone-terminal-fill: oklch(0.65 0.12 155 / 0.12);
+  --workflow-tone-terminal-ink: oklch(0.48 0.11 155);
+  --workflow-tone-app-fill: var(--card);
+  --workflow-tone-app-ink: var(--muted-foreground);
+
+  /* Canvas dots sit behind 1.75px wires: --border was too faint to register.
+     Mixed from foreground so both themes derive one perceived weight. */
+  --workflow-canvas-dot: color-mix(in oklch, var(--foreground) 13%, var(--background));
+  /* Cards separate from the canvas by a crisp hairline plus a soft two-layer
+     shadow — a contact line and a shallow ambient — instead of shadow-sm. */
+  --workflow-card-border: color-mix(in oklch, var(--foreground) 14%, var(--background));
+  --workflow-card-shadow: 0 1px 2px rgba(16, 16, 24, 0.05), 0 3px 10px -2px rgba(16, 16, 24, 0.07);
+  /* Hover is a whisper of tint, not elevation — the lift and shadow are
+     reserved for actually holding the card. */
+  --workflow-card-hover: color-mix(in oklch, var(--foreground) 3%, var(--card));
+}
+
+/* ── Dark ── */
+
+.dark {
+  --success-ink: oklch(0.72 0.17 162);
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent-subtle: oklch(0.269 0 0);
+  --accent-subtle-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.62 0 0);
+  --brand: oklch(0.673 0.182 276.935); /* indigo-400, lifted for dark */
+  --brand-foreground: oklch(0.145 0 0);
+  --brand-subtle: oklch(0.673 0.182 276.935 / 0.18);
+  --brand-deep: oklch(0.511 0.262 276.966); /* indigo-600 — gradient bottom, richer */
+  --chart-1: #6366f1;
+  --chart-2: #d95926;
+
+  --chrome: oklch(0.205 0 0);
+  --shelf: oklch(0.17 0 0);
+  --chrome-edge: oklch(0.27 0 0);
+
+  /* Press shadows — dark theme. A shadow reads weaker on a dark surface, so the inner ones run deeper. */
+  --shadow-btn-primary:
+    inset 0 1px 0 rgba(255, 255, 255, 0.15), inset 0 0 0 rgba(0, 0, 0, 0), 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-btn-primary-active:
+    inset 0 1px 0 rgba(255, 255, 255, 0), inset 0 1.5px 3px rgba(0, 0, 0, 0.6), 0 0 0 rgba(0, 0, 0, 0);
+  --shadow-btn-secondary:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 0 0 rgba(0, 0, 0, 0), 0 0 0 0.5px rgba(0, 0, 0, 0.3),
+    0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-btn-secondary-active:
+    inset 0 1px 0 rgba(255, 255, 255, 0), inset 0 1.5px 3px rgba(0, 0, 0, 0.5), 0 0 0 0.5px rgba(0, 0, 0, 0.3),
+    0 0 0 rgba(0, 0, 0, 0);
+  --shadow-press:
+    0 0 #0000, inset 0 1px 2.5px rgba(0, 0, 0, 0.55),
+    inset 0 0 0 100vmax color-mix(in oklab, var(--foreground) 3%, transparent);
+
+  /* Floating panel shadow — dark theme: elevation reads mostly from bg-card, shadow stays quiet */
+  --shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px -12px rgba(0, 0, 0, 0.5);
+
+  /* Workflow node tones — dark. Fills carry slightly more alpha because a tint
+     over a near-black card loses more presence than the same tint over white;
+     ink is lifted well above the fill so glyphs stay legible at small sizes. */
+  --workflow-tone-entry-fill: oklch(0.673 0.182 276.935 / 0.16);
+  --workflow-tone-entry-ink: oklch(0.78 0.13 276.935);
+  --workflow-tone-intelligence-fill: oklch(0.7 0.14 300 / 0.16);
+  --workflow-tone-intelligence-ink: oklch(0.79 0.12 300);
+  --workflow-tone-control-fill: oklch(0.7 0.12 250 / 0.16);
+  --workflow-tone-control-ink: oklch(0.79 0.1 250);
+  --workflow-tone-waiting-fill: oklch(0.75 0.12 75 / 0.16);
+  --workflow-tone-waiting-ink: oklch(0.83 0.11 75);
+  --workflow-tone-data-fill: oklch(0.72 0.1 195 / 0.16);
+  --workflow-tone-data-ink: oklch(0.82 0.09 195);
+  --workflow-tone-terminal-fill: oklch(0.72 0.12 155 / 0.16);
+  --workflow-tone-terminal-ink: oklch(0.82 0.11 155);
+  --workflow-tone-app-fill: oklch(1 0 0 / 0.06);
+  --workflow-tone-app-ink: var(--muted-foreground);
+
+  --workflow-canvas-dot: color-mix(in oklch, var(--foreground) 15%, var(--background));
+  --workflow-card-border: color-mix(in oklch, var(--foreground) 16%, var(--background));
+  --workflow-card-shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 3px 12px -2px rgba(0, 0, 0, 0.4);
+  --workflow-card-hover: color-mix(in oklch, var(--foreground) 5%, var(--card));
+}
+
+/* Docked Clerky sits on the frame itself (--chrome, 0.934), where 0.53 muted text is 4.35:1. 0.51 clears 4.5:1
+   there (4.73:1); dark mode already clears it (6.9:1). */
+:root:not(.dark) [data-clerky-docked] {
+  --muted-foreground: oklch(0.51 0 0);
+}
+
+/* A frame over exactly what the member can see; main.tsx writes both values. */
+@utility app-viewport {
+  position: fixed;
+  inset-inline: 0;
+  top: var(--app-viewport-top);
+  height: var(--app-viewport-height);
+}
+
+/* ── Base ── */
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  html {
+    font-family: var(--font-sans);
+    /* Controls answer a press with their own shadows; the browser's grey tap flash would cover them. */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+.superclerk-wordmark {
+  font-family: "Outfit", var(--font-sans), sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  background-clip: padding-box;
+  border: 3px solid transparent;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--muted-foreground);
+}
