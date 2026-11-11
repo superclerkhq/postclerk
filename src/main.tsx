@@ -11,6 +11,7 @@ import "@fontsource/jetbrains-mono/latin-400.css"
 import "@fontsource/outfit/latin-600.css"
 
 import { ShelfPages } from "@/components/shelf-link"
+import { AssistantsView } from "@/components/social/social-assistants"
 import { SOCIAL_VIEWS, socialPages, SocialMobileNav, type SocialViewName } from "@/components/social/social-menu"
 import { SocialView } from "@/components/social/social-view"
 import "./index.css"
@@ -53,7 +54,7 @@ function Home() {
         <header className="flex h-12 shrink-0 items-center border-b border-border/70 px-2 sm:hidden">
           <SocialMobileNav />
         </header>
-        <SocialView view={view} accountId={account} />
+        {view === "assistants" ? <AssistantsView /> : <SocialView view={view} accountId={account} />}
       </main>
     </div>
   )

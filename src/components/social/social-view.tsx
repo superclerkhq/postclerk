@@ -20,14 +20,17 @@ import { SocialAnalytics } from "./social-analytics"
 import { PlatformLogo } from "./social-logo"
 import { Composer, localWhen, scheduledInstant, WhenFields, type When } from "./social-composer"
 import { MediaPreview } from "./social-media"
-import { isPostView, PostViewTabs, socialPage, type SocialViewName } from "./social-menu"
+import { socialPage, type SocialViewName } from "./social-menu"
 import { TikTokDeclaration, TikTokPublishing, TikTokInboxNotice } from "./social-platform-fields"
 import { CalendarView, FeedView, monthRange, POST_STATUS_LABELS, PostList, postNeedsAttention } from "./social-views"
 
 const postsKey = ["social", "posts"] as const
 type Editor = { kind: "new"; date?: Date } | { kind: "detail" | "edit"; id: string } | null
 
-const DESCRIPTIONS: Record<SocialViewName, string> = {
+/** Every view but AI assistants, which is a page of its own. */
+type WorkspaceView = Exclude<SocialViewName, "assistants">
+
+const DESCRIPTIONS: Record<WorkspaceView, string> = {
   queue: "Scheduled posts, in the order they go out.",
   calendar: "Every scheduled and published post, day by day.",
   drafts: "Posts saved without a time, ready to schedule or publish.",
@@ -41,7 +44,7 @@ function Problem({ error }: { error: unknown }) {
   return error ? <FormError>{errorMessage(error, "The request failed")}</FormError> : null
 }
 
-export function SocialView({ view, accountId }: { view: SocialViewName; accountId: string | undefined }) {
+export function SocialView({ view, accountId }: { view: WorkspaceView; accountId: string | undefined }) {
   const cache = useQueryClient()
   const navigate = useNavigate({ from: "/" })
   const [status, setStatus] = useState<SocialPost["status"] | undefined>(undefined)
@@ -124,11 +127,6 @@ export function SocialView({ view, accountId }: { view: SocialViewName; accountI
           )}
         </div>
         <div className="min-w-0">
-          {isPostView(view) && (
-            <div className="mb-4">
-              <PostViewTabs view={view} account={accountId} />
-            </div>
-          )}
           {/* Analytics and the feed read one account at a time: their own picker chooses the first, then the chips switch. */}
           {view !== "accounts" &&
             (accountId !== undefined || (view !== "analytics" && view !== "feed")) &&

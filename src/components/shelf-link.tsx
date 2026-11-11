@@ -23,7 +23,7 @@ export const SHELF_ROW = cn(
 export const SHELF_ROW_ACTIVE = "bg-foreground/[0.06] text-foreground hover:bg-foreground/[0.06]"
 
 /** A page a section links to, and whether it is the one open now. */
-export type NavLink = { to: string; search?: Record<string, string | undefined>; label: string; active: boolean }
+type NavLink = { to: string; search?: Record<string, string | undefined>; label: string; active: boolean }
 export type NavPage = NavLink & { icon: Icon }
 
 /** A shelf row; anything after the label sits at the row's end. */
