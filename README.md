@@ -17,15 +17,16 @@ It's built on the [Superclerk API](https://docs.superclerk.com), so there's no d
 
 ## Run it
 
-You need [Bun](https://bun.sh) and a Superclerk API key: sign up at [superclerk.com](https://superclerk.com), then create one with Full access under Settings, Developer API.
+You need [Bun](https://bun.sh).
 
 ```sh
 bun install
-cp .env.example .env   # add your SUPERCLERK_API_KEY
 bun run dev
 ```
 
-Open <http://localhost:3000>.
+Open <http://localhost:3000> and click **Sign in with Superclerk**. Approve the app in Superclerk (new to it? you make an account on the way), and you're back in the app, signed in. It gets a key that can only post and connect accounts on the networks the app supports, kept in `.env`. **Sign out** revokes it.
+
+Rather paste a key? Create one with Full access under Settings, Developer API in Superclerk, and set it as `SUPERCLERK_API_KEY` in `.env`.
 
 To run it in production:
 
@@ -73,6 +74,8 @@ await superclerk.social.posts.create({
 Browser or AI assistant → server.ts (holds your API key) → api.superclerk.com
 ```
 
+- Signing in is [OAuth with PKCE](https://oauth.net/2/pkce/): `server.ts` sends you to Superclerk to approve the app, and trades the code you come back with for the key. It asks for the `social:write` and `connections:write` scopes, on the networks the app posts to.
+- On your computer Superclerk knows the app as `superclerk-social`. On a server, the app's address must use HTTPS, and the app introduces itself with its [client metadata document](https://datatracker.ietf.org/doc/draft-ietf-oauth-client-id-metadata-document/) at `/oauth/client.json`, which Superclerk reads when you sign in.
 - The browser uses [`@superclerk/sdk`](https://www.npmjs.com/package/@superclerk/sdk) and never sees your key. `server.ts` adds it, and only forwards the parts of the API this app uses.
 - AI assistants connect to `/mcp`, which passes on Superclerk's own MCP tools for Social and refuses every other tool.
 - Photos and videos pass through `server.ts` to storage.

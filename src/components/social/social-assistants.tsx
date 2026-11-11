@@ -1,5 +1,5 @@
 import { Plugs } from "@phosphor-icons/react"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import type { ReactNode } from "react"
 
 import { buttonClass } from "@/components/common/button"
@@ -7,6 +7,7 @@ import { CopyButton } from "@/components/common/copy-button"
 import { ErrorState, LoadingState } from "@/components/common/empty-state"
 import { Group, GroupRow } from "@/components/common/group"
 import { PageBody, PageHeader } from "@/components/common/page"
+import { appConfigQuery, type AppConfig } from "@/lib/app-config"
 import { errorMessage } from "@/lib/errors"
 
 const NAME = "superclerk-social"
@@ -24,22 +25,23 @@ type ListedTool = { name: string; title: string; annotations: { readOnlyHint: bo
 type McpServer = { passwordRequired: boolean; tools: ListedTool[] }
 
 /** The tools /mcp gives an assistant now, and whether the server asks for APP_PASSWORD. */
-async function readServer(): Promise<McpServer> {
-  const [config, response] = await Promise.all([
-    fetch("/config.json").then((answer) => answer.json() as Promise<{ passwordRequired: boolean }>),
-    fetch("/mcp", TOOLS_LIST),
-  ])
+async function readServer(config: Promise<AppConfig>): Promise<McpServer> {
+  const response = await fetch("/mcp", TOOLS_LIST)
   const text = await response.text()
   // One reply, sent as JSON or as a server-sent event.
   const reply = JSON.parse(
     response.headers.get("content-type")?.startsWith("text/event-stream") ? text.match(/^data: (.+)$/m)![1] : text,
   )
   if (reply.error) throw new Error(reply.error.message)
-  return { passwordRequired: config.passwordRequired, tools: reply.result.tools }
+  return { passwordRequired: (await config).passwordRequired, tools: reply.result.tools }
 }
 
 export function AssistantsView() {
-  const server = useQuery({ queryKey: ["mcp-server"], queryFn: readServer })
+  const queryClient = useQueryClient()
+  const server = useQuery({
+    queryKey: ["mcp-server"],
+    queryFn: () => readServer(queryClient.ensureQueryData(appConfigQuery)),
+  })
   return (
     <>
       <PageHeader

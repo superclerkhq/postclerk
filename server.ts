@@ -1,9 +1,29 @@
-import { createHash, timingSafeEqual } from "node:crypto"
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto"
+import { chmod, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { APIError, Superclerk, type SocialMediaCreateParams } from "@superclerk/sdk"
 
-// The server holds the API key, so it never reaches a browser. The SDK reads SUPERCLERK_API_KEY from the environment.
-const superclerk = new Superclerk()
+// Superclerk's API, which the app signs in to.
+const BASE_URL = (process.env.SUPERCLERK_BASE_URL ?? "https://api.superclerk.com").replace(/\/+$/, "")
+// Bun reads .env on start, so a key kept there signs the app in again after a restart.
+const ENV_FILE = ".env"
+const KEY_LINE = /^\s*SUPERCLERK_API_KEY=/
+// How Superclerk knows the app on this computer, where it couldn't fetch the app's own client document.
+const LOCAL_CLIENT_ID = "superclerk-social"
+// Where a copy at its own address tells Superclerk who it is: its Client ID Metadata Document.
+const CLIENT_DOCUMENT = "/oauth/client.json"
+// What the app asks to do: post, and connect the accounts it posts to, on the networks it posts to.
+const SCOPE = "social:write connections:write"
+const APPS = "instagram facebook-page linkedin-profile linkedin-page threads tiktok youtube google-business-profile"
+
+type Session = { key: string; superclerk: Superclerk }
+
+const open = (key: string | undefined): Session | undefined =>
+  key ? { key, superclerk: new Superclerk({ apiKey: key, baseURL: BASE_URL }) } : undefined
+
+// The key the app acts with, which never reaches a browser: one set by hand, or the one Sign in with Superclerk gave
+// it. None while signed out.
+let session = open(process.env.SUPERCLERK_API_KEY || undefined)
 
 const hostname = process.env.HOST ?? "127.0.0.1"
 const password = process.env.APP_PASSWORD
@@ -44,6 +64,7 @@ const MCP_HEADERS = ["accept", "content-type", "mcp-protocol-version", "mcp-meth
 const MCP_MAX_BYTES = 512 * 1024
 // The API's own limit on one file.
 const MAX_UPLOAD_BYTES = 5 * 1024 ** 3
+const SIGNED_OUT = "Open the app and sign in with Superclerk first"
 
 const failure = (status: number, code: string, message: string) =>
   Response.json({ error: { code, message } }, { status })
@@ -70,21 +91,21 @@ function hasPassword(request: Request) {
 }
 
 /** A request's headers as Superclerk gets them: with the key, and without this app's own site and password. */
-function upstreamHeaders(request: Request) {
+function upstreamHeaders(request: Request, key: string) {
   const headers = new Headers(request.headers)
   for (const name of ["host", "cookie", "origin", "referer"]) headers.delete(name)
-  headers.set("authorization", `Bearer ${process.env.SUPERCLERK_API_KEY}`)
+  headers.set("authorization", `Bearer ${key}`)
   // Answered as it comes, so the response passes through untouched.
   headers.set("accept-encoding", "identity")
   return headers
 }
 
-async function forward(request: Request, url: URL) {
+async function forward(request: Request, url: URL, { key }: Session) {
   const target = url.pathname.slice("/api".length)
   if (!ALLOWED.some((path) => path.test(target))) return failure(403, "not_allowed", "This app doesn't use that API")
-  const upstream = await fetch(`${superclerk.baseURL}${target}${url.search}`, {
+  const upstream = await fetch(`${BASE_URL}${target}${url.search}`, {
     method: request.method,
-    headers: upstreamHeaders(request),
+    headers: upstreamHeaders(request, key),
     body: request.body,
     redirect: "manual",
   })
@@ -94,7 +115,7 @@ async function forward(request: Request, url: URL) {
 type RpcMessage = { id?: unknown; method?: unknown; params?: { name?: unknown } } | null
 
 /** Superclerk's MCP server with only its Social tools. It keeps nothing between requests, so there is only POST. */
-async function mcp(request: Request) {
+async function mcp(request: Request, { key }: Session) {
   if (request.method !== "POST") return new Response(null, { status: 405, headers: { allow: "POST" } })
   if (Number(request.headers.get("content-length")) > MCP_MAX_BYTES)
     return rpcFailure(413, null, -32600, "Request too large")
@@ -113,7 +134,7 @@ async function mcp(request: Request) {
   if (method === "tools/call" && !(typeof tool === "string" && MCP_TOOLS.has(tool)))
     return rpcFailure(200, message!.id, -32602, `Unknown tool: ${tool}`)
   try {
-    return await relay(request, body, method, message!.id)
+    return await relay(request, body, method, message!.id, key)
   } catch (error) {
     console.error(error)
     return rpcFailure(502, message!.id, -32000, "Could not reach Superclerk")
@@ -121,16 +142,13 @@ async function mcp(request: Request) {
 }
 
 /** Sends a checked message to Superclerk, and hands its answer back with only the Social tools in it. */
-async function relay(request: Request, body: string, method: string, id: unknown) {
-  const headers = new Headers({
-    authorization: `Bearer ${process.env.SUPERCLERK_API_KEY}`,
-    "accept-encoding": "identity",
-  })
+async function relay(request: Request, body: string, method: string, id: unknown, key: string) {
+  const headers = new Headers({ authorization: `Bearer ${key}`, "accept-encoding": "identity" })
   for (const name of MCP_HEADERS) {
     const value = request.headers.get(name)
     if (value !== null) headers.set(name, value)
   }
-  const upstream = await fetch(`${superclerk.baseURL}/v1/mcp`, { method: "POST", headers, body, redirect: "manual" })
+  const upstream = await fetch(`${BASE_URL}/v1/mcp`, { method: "POST", headers, body, redirect: "manual" })
   // A refused key is this app's to fix. Its 401 passed on would send the client looking for an OAuth server here.
   if (upstream.status === 401 || upstream.status === 403) {
     const { error } = (await upstream.json()) as { error: { message: string } }
@@ -165,7 +183,7 @@ async function rewritten(upstream: Response, change: (reply: { result?: Record<s
 }
 
 // Storage takes browser uploads only from Superclerk's own sites, so the bytes pass through here.
-async function upload(request: Request) {
+async function upload(request: Request, { superclerk }: Session) {
   const metadata = JSON.parse(decodeURIComponent(request.headers.get("x-upload")!)) as SocialMediaCreateParams
   const idempotencyKey = request.headers.get("idempotency-key")!
   const { asset, upload } = await superclerk.social.media.create(metadata, { idempotencyKey })
@@ -174,6 +192,86 @@ async function upload(request: Request) {
   // 412: an earlier try already stored these bytes. Confirming checks them either way.
   if (!stored.ok && stored.status !== 412) return failure(502, "upload_failed", `Storage answered ${stored.status}`)
   return Response.json(await superclerk.social.media.confirm(asset.id, { idempotencyKey: crypto.randomUUID() }))
+}
+
+/** Keeps the key in .env, where one set by hand goes, and acts with it from now on. None signs the app out. */
+async function keep(key: string | undefined) {
+  const file = Bun.file(ENV_FILE)
+  const lines = ((await file.exists()) ? await file.text() : "").split("\n").filter((line) => !KEY_LINE.test(line))
+  while (lines.at(-1) === "") lines.pop()
+  if (key) lines.push(`SUPERCLERK_API_KEY=${key}`)
+  await writeFile(ENV_FILE, lines.length > 0 ? `${lines.join("\n")}\n` : "")
+  // Its owner's alone, as a file holding a key should be.
+  await chmod(ENV_FILE, 0o600)
+  session = open(key)
+}
+
+// The sign-in waiting for Superclerk to send the browser back to /callback: one at a time, as the app has one key.
+let pending: { state: string; verifier: string; redirectURI: string; clientID: string } | undefined
+
+const secret = () => randomBytes(32).toString("base64url")
+
+/** Back to the app, saying why when signing in or out went wrong. */
+const home = (problem?: string) =>
+  new Response(null, { status: 303, headers: { location: problem ? `/?problem=${encodeURIComponent(problem)}` : "/" } })
+
+/** Sends the browser to Superclerk to approve this app: OAuth's authorization code flow with PKCE. */
+function startSignIn(request: Request) {
+  // Back to the page's own address, as the browser sees it through any proxy in front.
+  const origin = new URL(request.headers.get("origin")!)
+  const redirectURI = new URL("/callback", origin).href
+  const clientID = LOCAL_NAMES.has(origin.hostname) ? LOCAL_CLIENT_ID : new URL(CLIENT_DOCUMENT, origin).href
+  pending = { state: secret(), verifier: secret(), redirectURI, clientID }
+  const authorize = new URL(`${BASE_URL}/oauth/authorize`)
+  authorize.search = new URLSearchParams({
+    response_type: "code",
+    client_id: clientID,
+    redirect_uri: redirectURI,
+    state: pending.state,
+    code_challenge: digest(pending.verifier).toString("base64url"),
+    code_challenge_method: "S256",
+    scope: SCOPE,
+    apps: APPS,
+  }).toString()
+  return Response.redirect(authorize.href, 303)
+}
+
+/** Where Superclerk sends the browser back: the code trades for the app's key, if this server asked for it. */
+async function finishSignIn(query: URLSearchParams) {
+  const started = pending
+  pending = undefined
+  const code = query.get("code")
+  // The person said no on Superclerk.
+  if (!code) return home()
+  // A code this server didn't ask for may be someone else's sign-in, sent to sign the app in to their workspace.
+  if (query.get("state") !== started?.state) return home("This sign-in didn’t start here. Sign in again.")
+  const answer = await fetch(`${BASE_URL}/oauth/token`, {
+    method: "POST",
+    body: new URLSearchParams({
+      grant_type: "authorization_code",
+      code,
+      client_id: started.clientID,
+      redirect_uri: started.redirectURI,
+      code_verifier: started.verifier,
+    }),
+  })
+  const token = (await answer.json()) as { access_token: string; error_description: string }
+  if (!answer.ok) return home(token.error_description)
+  await keep(token.access_token)
+  return home()
+}
+
+/** Signs the app out, and asks Superclerk to revoke the key its sign-in gave; one made by hand stays (RFC 7009). */
+async function signOut({ key }: Session) {
+  await keep(undefined)
+  const revoked = await fetch(`${BASE_URL}/oauth/revoke`, { method: "POST", body: new URLSearchParams({ token: key }) })
+    .then((answer) => answer.ok)
+    .catch(() => false)
+  return home(
+    revoked
+      ? undefined
+      : "Signed out, but Superclerk didn’t revoke the app’s key. Revoke it in Settings, Developer API.",
+  )
 }
 
 async function page(pathname: string) {
@@ -190,6 +288,15 @@ const server = Bun.serve({
     const url = new URL(request.url)
     if (!password && !LOCAL_NAMES.has(url.hostname))
       return failure(403, "wrong_host", "Without APP_PASSWORD this app answers only at localhost")
+    // Superclerk reads it when a copy at its own address signs in, so the password doesn't guard it. It fetches one
+    // only over HTTPS.
+    if (url.pathname === CLIENT_DOCUMENT)
+      return Response.json({
+        client_id: `https://${url.host}${CLIENT_DOCUMENT}`,
+        client_name: "Superclerk Social",
+        redirect_uris: [`https://${url.host}/callback`],
+        token_endpoint_auth_method: "none",
+      })
     if (!hasPassword(request))
       return new Response("Password required", {
         status: 401,
@@ -199,12 +306,21 @@ const server = Bun.serve({
     // Compared without the scheme, which a proxy in front may have changed. "null" names no site, so it never matches.
     if (origin && origin.replace(/^[a-z]+:\/\//, "") !== url.host)
       return failure(403, "wrong_origin", "Cross-site requests are refused")
+    // One session for the whole request, whatever a sign-in or sign-out does meanwhile.
+    const current = session
     try {
-      if (url.pathname.startsWith("/api/")) return await forward(request, url)
-      if (url.pathname === "/upload" && request.method === "POST") return await upload(request)
-      if (url.pathname === "/mcp") return await mcp(request)
-      // The page tells assistants how to connect, which depends on whether they need the password too.
-      if (url.pathname === "/config.json") return Response.json({ passwordRequired: Boolean(password) })
+      if (url.pathname === "/signin" && request.method === "POST") return startSignIn(request)
+      if (url.pathname === "/callback") return await finishSignIn(url.searchParams)
+      if (url.pathname === "/signout" && request.method === "POST" && current) return await signOut(current)
+      // Whether the page signs in first, and whether assistants need the password.
+      if (url.pathname === "/config.json")
+        return Response.json({ passwordRequired: Boolean(password), signedIn: current !== undefined })
+      if (url.pathname === "/mcp")
+        return current ? await mcp(request, current) : rpcFailure(409, null, -32000, SIGNED_OUT)
+      if (url.pathname.startsWith("/api/") || (url.pathname === "/upload" && request.method === "POST")) {
+        if (!current) return failure(409, "signed_out", SIGNED_OUT)
+        return url.pathname === "/upload" ? await upload(request, current) : await forward(request, url, current)
+      }
     } catch (error) {
       if (error instanceof APIError) return failure(error.status, error.code, error.message)
       console.error(error)
