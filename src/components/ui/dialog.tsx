@@ -6,9 +6,7 @@ import { PANEL_ACTION_BAR, PANEL_SCRIM, PANEL_SURFACE } from "@/components/ui/st
 import { cn } from "@/lib/utils"
 
 const Dialog = DialogPrimitive.Root
-const DialogTrigger = DialogPrimitive.Trigger
 const DialogPortal = DialogPrimitive.Portal
-const DialogClose = DialogPrimitive.Close
 
 /**
  * Hands focus back to whatever had it when the dialog opened. Radix returns focus only to its own
@@ -140,7 +138,6 @@ DialogDescription.displayName = DialogPrimitive.Description.displayName
 export {
   Dialog,
   DialogBody,
-  DialogClose,
   DialogContent,
   DialogCrumb,
   DialogDescription,
@@ -149,5 +146,4 @@ export {
   DialogOverlay,
   DialogPortal,
   DialogTitle,
-  DialogTrigger,
 }

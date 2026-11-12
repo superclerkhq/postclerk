@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from "react"
+import type { InputHTMLAttributes, ReactNode } from "react"
 import { Check, HelpCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Switch } from "./switch"
@@ -132,62 +132,6 @@ export function TextInput({
   ...props
 }: { tone?: Tone } & InputHTMLAttributes<HTMLInputElement>) {
   return <input className={cn(fieldTone(tone), className)} {...props} />
-}
-
-export function TextArea({
-  className,
-  tone = "outline",
-  ...props
-}: { tone?: Tone } & TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea className={cn(fieldTone(tone), "resize-y font-mono text-xs", className)} {...props} />
-}
-
-interface CheckItem {
-  id: string
-  label: string
-  hint?: string
-}
-
-export function ChipGroup<T extends CheckItem>({
-  items,
-  selected,
-  onToggle,
-  empty,
-}: {
-  items: T[]
-  selected: string[]
-  onToggle: (id: string) => void
-  empty?: string
-}) {
-  if (items.length === 0) {
-    return (
-      <div className="rounded-md border border-dashed border-border px-3 py-2.5 text-xs text-muted-foreground">
-        {empty ?? "Nothing available."}
-      </div>
-    )
-  }
-
-  const hasHints = items.some((i) => i.hint)
-  const selectedSet = new Set(selected)
-
-  return (
-    <div
-      className={cn(
-        "grid min-w-0 gap-1",
-        hasHints ? "grid-cols-[minmax(0,1fr)]" : "grid-cols-[repeat(2,minmax(0,1fr))]",
-      )}
-    >
-      {items.map((item) => (
-        <CheckRow
-          key={item.id}
-          label={item.label}
-          hint={item.hint}
-          active={selectedSet.has(item.id)}
-          onClick={() => onToggle(item.id)}
-        />
-      ))}
-    </div>
-  )
 }
 
 function CheckRow({

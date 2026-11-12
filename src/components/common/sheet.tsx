@@ -15,16 +15,6 @@ import {
 import { cn } from "@/lib/utils"
 
 export const Sheet = Dialog.Root
-export const SheetTrigger = Dialog.Trigger
-export const SheetClose = Dialog.Close
-export const SheetTitle = Dialog.Title
-export const SheetDescription = Dialog.Description
-
-/** For `onOpenAutoFocus`, where the first control is one a second Enter or a stray Tab shouldn't press. */
-export function focusTitle(event: Event) {
-  event.preventDefault()
-  ;(event.currentTarget as HTMLElement).querySelector("h2")!.focus()
-}
 
 /**
  * A panel that floats in from the right, inset from the viewport like the app's own rounded sheet.

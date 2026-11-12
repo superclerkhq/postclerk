@@ -49,7 +49,7 @@ bun run dev
 
 Open <http://localhost:5173> and sign in. Superclerk can't reach your computer to read its address, so a local copy signs in as postclerk.io, which allows sending you back to localhost.
 
-The screens live in `src/components/social`, and the whole server is one file, `worker/index.ts`.
+The screens live in `src/components/social`, and the whole server is one file, `worker/index.ts`, built on [Hono](https://hono.dev). `bun test` runs its tests, and `bun run typecheck` checks the types; CI runs both on every push.
 
 ## How sign-in works
 
@@ -77,7 +77,7 @@ The Worker itself keeps nothing:
 Browser or AI assistant → worker/index.ts on Cloudflare → api.superclerk.com
 ```
 
-Your key is encrypted with `SESSION_SECRET` into a cookie that lasts a year. Page scripts can't read it, and the browser sends it only with Postclerk's own requests, over HTTPS. On each call the Worker decrypts it and passes the call on to Superclerk, which enforces the key's scopes. This is the [backend-for-frontend pattern](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-browser-based-apps) for browser apps.
+Your key is encrypted with `SESSION_SECRET` into a cookie that lasts a year, as a standard encrypted JWT ([JWE](https://www.rfc-editor.org/rfc/rfc7516), with [jose](https://github.com/panva/jose)). Page scripts can't read it, and the browser sends it only with Postclerk's own requests, over HTTPS. On each call the Worker decrypts it and passes the call on to Superclerk, which enforces the key's scopes. This is the [backend-for-frontend pattern](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-browser-based-apps) for browser apps.
 
 ## AI assistants
 

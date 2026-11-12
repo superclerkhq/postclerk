@@ -22,29 +22,6 @@ export const PRESS_MOTION =
 /** How a flat control answers a press: it sinks into a small well (see --shadow-press in index.css). */
 export const PRESS = `${PRESS_MOTION} press:shadow-[var(--shadow-press)]`
 
-/**
- * The chosen option of a set: a chip raised out of its well by a hairline and a soft shadow that, pressed, keeps its
- * hairline and sinks back in. Segmented controls and choice lists share it, so a choice reads the same everywhere.
- */
-export const CHOSEN_CHIP =
-  "bg-background text-foreground shadow-[0_0_0_0.5px_var(--chrome-edge),0_1px_2px_rgb(0_0_0/0.06)] press:shadow-[0_0_0_0.5px_var(--chrome-edge),var(--shadow-press)]"
-
-/** Filled card row — app tiles, tool groups, trigger rows, session rows. */
-export const CARD_FILLED =
-  "flex w-full items-center gap-2.5 rounded-md bg-surface-soft px-3 py-2 text-left transition-colors"
-
-/** Interactive variant of CARD_FILLED (button or link). */
-export const CARD_FILLED_INTERACTIVE = "cursor-pointer hover:bg-surface-medium"
-
-/** Field sitting inside a tinted well (workflow inspector, soft panels).
- *  Borderless fills read as static text there — nothing separates the control
- *  from its well — so a control is a white card in the well: background fill
- *  with a light hairline, the border firming on hover. */
-export const WELL_CONTROL = "border-border bg-background hover:border-foreground/20"
-
-/** Small pill action — the row-level button on app/channel cards. */
-export const PILL_ACTION = `inline-flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full bg-background px-2.5 py-1 text-[11.5px] font-medium text-foreground ring-1 ring-inset ring-border/50 ${PRESS} hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50`
-
 /*
  * Panels — sheets and dialogs speak one language: a card lifted by a hairline and a soft shadow (never a
  * border), a light scrim, and their actions in a bar along the bottom. Hairlines are 0.5px shadows because

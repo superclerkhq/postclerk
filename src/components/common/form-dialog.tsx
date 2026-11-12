@@ -1,4 +1,4 @@
-import type { ComponentProps, FormEvent, InputHTMLAttributes, ReactNode } from "react"
+import type { ComponentProps, FormEvent, ReactNode } from "react"
 
 import { BusyButton, Button } from "@/components/common/button"
 import { SheetContent, SheetHeader } from "@/components/common/sheet"
@@ -134,32 +134,6 @@ export function FormError({ children }: { children: ReactNode }) {
     <p role="alert" className="whitespace-pre-line text-xs leading-5 text-destructive">
       {children}
     </p>
-  )
-}
-
-/**
- * The one field a short dialog is about, drawn large and bare under the dialog's crumb. Its hint sits
- * beneath it and doubles as the dialog's description.
- */
-export function HeroField({
-  label,
-  hint,
-  className,
-  ...props
-}: { label: string; hint: ReactNode } & Omit<InputHTMLAttributes<HTMLInputElement>, "aria-label">) {
-  return (
-    <div className="min-w-0">
-      <input
-        aria-label={label}
-        className={cn(
-          "w-full min-w-0 bg-transparent text-[20px] font-medium leading-8 tracking-[-0.02em] text-foreground outline-none",
-          "placeholder:text-muted-foreground/50 disabled:opacity-60",
-          className,
-        )}
-        {...props}
-      />
-      <DialogDescription className="mt-0.5">{hint}</DialogDescription>
-    </div>
   )
 }
 
