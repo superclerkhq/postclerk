@@ -27,7 +27,9 @@ It takes about two minutes, and Cloudflare's free plan covers it.
 3. Cloudflare asks for one secret, `SESSION_SECRET`. Paste any long random string: `openssl rand -base64 32` makes one. Leave `SUPERCLERK_URL` as it is.
 4. Deploy, then open the address Cloudflare gives your Worker (it ends in `workers.dev`) and click **Sign in with Superclerk**.
 
-That's it. There's nothing to register with Superclerk, because your copy introduces itself when someone signs in ([How sign-in works](#how-sign-in-works) explains how). Every push to your copy's `main` branch redeploys it.
+That's it. Every push to your copy's `main` branch redeploys it.
+
+**Do I need to create an OAuth app or client key?** No. Your copy's own address is its client ID. When someone signs in, Superclerk reads `https://<your-copy>/oauth/client.json`, which the Worker serves, and the approval page names your copy by its domain. There's no developer console, client secret or review to go through. [How sign-in works](#how-sign-in-works) explains the details.
 
 To use your own domain, open the Worker in Cloudflare and add it under **Settings → Domains & Routes**. Changing `SESSION_SECRET` later signs everyone out.
 
@@ -61,10 +63,10 @@ https://api.superclerk.com/oauth/authorize
   &redirect_uri=https://postclerk.io/oauth/callback
   &scope=social:write connections:write
   &apps=instagram facebook-page linkedin-profile linkedin-page threads tiktok youtube google-business-profile
-  &code_challenge=…&state=…
+  &code_challenge=…
 ```
 
-- **`client_id` is a URL.** Superclerk fetches it and reads the app's [client metadata document](https://datatracker.ietf.org/doc/draft-ietf-oauth-client-id-metadata-document/): its name and the addresses it may send you back to. That's why no copy needs registering, and why the approval page names the app by its domain.
+- **`client_id` is a URL.** Superclerk fetches it and reads the app's [client metadata document](https://datatracker.ietf.org/doc/draft-ietf-oauth-client-id-metadata-document/): its name and the addresses it may send you back to. It's how MCP clients such as Claude and ChatGPT identify themselves too, so no copy needs registering. Anyone could write any name in that file, so the approval page shows the domain it was fetched from instead.
 - **`scope` is what the app may do.** `social:write` covers social accounts, posts, media and analytics. `connections:write` covers connecting accounts. Each includes reading.
 - **`apps` narrows it to these networks.** The approval page shows their logos, and the key only sees connections from those apps and can only connect those. LinkedIn shows twice because personal profiles and company pages are separate apps.
 - **Allow sends you back with a one-time code.** The Worker trades it, along with a [PKCE](https://oauth.net/2/pkce/) verifier only it knows, for an API key with exactly that access.

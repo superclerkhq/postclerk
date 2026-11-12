@@ -48,7 +48,7 @@ function browser(site = SITE) {
 async function signIn(visitor = browser()) {
   const begun = await visitor.request("/oauth/signin", { method: "POST", headers: form })
   const authorize = new URL(begun.headers.get("location")!)
-  const back = await visitor.request(`/oauth/callback?code=the-code&state=${authorize.searchParams.get("state")}`)
+  const back = await visitor.request("/oauth/callback?code=the-code")
   return { visitor, begun, authorize, back }
 }
 
@@ -76,6 +76,7 @@ test("signing in sends the browser to Superclerk with PKCE, the scopes and the a
   const { begun, authorize } = await signIn()
   expect(begun.status).toBe(303)
   expect(authorize.origin + authorize.pathname).toBe(`${SUPERCLERK}/oauth/authorize`)
+  expect(authorize.searchParams.has("state")).toBe(false)
   expect(Object.fromEntries(authorize.searchParams)).toMatchObject({
     response_type: "code",
     client_id: `${SITE}/oauth/client.json`,
@@ -123,11 +124,14 @@ test("a copy on this computer signs in as postclerk.io, with plain cookies", asy
 
 test("a callback this browser didn't start never signs it in", async () => {
   const stranger = browser()
-  expect(problem(await stranger.request("/oauth/callback?code=theirs&state=theirs"))).toContain("didn’t start here")
+  expect(problem(await stranger.request("/oauth/callback?code=theirs"))).toContain("didn’t start here")
+  expect(sent).toHaveLength(0)
+
+  // Someone else's code reaches a browser that is signing in: it doesn't match this browser's verifier.
   const visitor = browser()
   await visitor.request("/oauth/signin", { method: "POST", headers: form })
-  expect(problem(await visitor.request("/oauth/callback?code=theirs&state=theirs"))).toContain("didn’t start here")
-  expect(sent).toHaveLength(0)
+  answer = () => Response.json({ error: "invalid_grant" }, { status: 400 })
+  expect(problem(await visitor.request("/oauth/callback?code=theirs"))).toContain("couldn’t finish signing you in")
   expect(await (await visitor.request("/api/session")).json()).toEqual({ signedIn: false })
 })
 
@@ -179,9 +183,10 @@ test("a sign-in lasts a year", async () => {
   expect(await (await visitor.request("/api/session")).json()).toEqual({ signedIn: false })
 })
 
-test("an assistant's token works on /mcp, and nothing else does", async () => {
+test("an assistant sends the sign-in as a Bearer token to /mcp", async () => {
   const { visitor } = await signIn()
-  const { token } = await (await visitor.request("/api/assistant-token")).json()
+  const { token } = (await (await visitor.request("/api/assistant-token")).json()) as { token: string }
+  expect(token).toBe(visitor.cookies.get("__Host-postclerk_session")!)
   const call = (bearer?: string) =>
     app.request(`${SITE}/mcp`, { method: "POST", headers: bearer ? { authorization: `Bearer ${bearer}` } : {} }, env)
 
@@ -191,18 +196,15 @@ test("an assistant's token works on /mcp, and nothing else does", async () => {
   expect(sent.at(-1)!.headers.get("authorization")).toBe(`Bearer ${KEY}`)
 
   const before = sent.length
-  for (const wrong of [undefined, "not-a-token", visitor.cookies.get("__Host-postclerk_session")]) {
-    const refused = await call(wrong)
-    expect(refused.status).toBe(401)
-    expect((await refused.json()).error.message).toContain("doesn’t know this token")
-  }
+  for (const wrong of [undefined, "not-a-token"]) expect((await call(wrong)).status).toBe(401)
   expect(sent).toHaveLength(before)
 
-  // The key was revoked: the token's sign-in has ended, and Superclerk's own sign-in isn't offered in its place.
+  // The key was revoked: the sign-in has ended, and Superclerk's own sign-in isn't offered in its place.
   answer = () => new Response(null, { status: 401, headers: { "www-authenticate": "Bearer" } })
   const ended = await call(token)
+  expect(ended.status).toBe(401)
   expect(ended.headers.get("www-authenticate")).toBeNull()
-  expect((await ended.json()).error.message).toContain("sign-in has ended")
+  expect(((await ended.json()) as { error: { message: string } }).error.message).toContain("Copy a new token")
 })
 
 test("signing out revokes the key and forgets the cookie, even when Superclerk can't be reached", async () => {
@@ -265,7 +267,6 @@ test("when Superclerk can't be reached, the person sees a message, not a crash",
   expect((await response.json()).error.code).toBe("bad_gateway")
 
   const arriving = browser()
-  const begun = await arriving.request("/oauth/signin", { method: "POST", headers: form })
-  const state = new URL(begun.headers.get("location")!).searchParams.get("state")
-  expect(problem(await arriving.request(`/oauth/callback?code=the-code&state=${state}`))).toContain("hit a problem")
+  await arriving.request("/oauth/signin", { method: "POST", headers: form })
+  expect(problem(await arriving.request("/oauth/callback?code=the-code"))).toContain("hit a problem")
 })

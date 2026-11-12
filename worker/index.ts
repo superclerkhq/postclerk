@@ -13,8 +13,8 @@ type Env = {
 }
 /** A person's sign-in: the Superclerk key it gave, which never reaches a page's scripts. */
 type Session = { key: string }
-/** A sign-in waiting for Superclerk to send the browser back. */
-type SignIn = { state: string; verifier: string }
+/** A sign-in waiting for Superclerk to send the browser back: its PKCE verifier. */
+type SignIn = { verifier: string }
 type Types = { Bindings: Env; Variables: { session: Session } }
 type App = Context<Types>
 
@@ -137,16 +137,19 @@ app.get("/oauth/client.json", (c) => {
   })
 })
 
-/** Sends the browser to Superclerk to approve this app: OAuth's authorization code flow with PKCE. */
+/**
+ * Sends the browser to Superclerk to approve this app: OAuth's authorization code flow with PKCE. Superclerk requires
+ * PKCE, which also keeps a code meant for another browser from signing this one in, so no `state` is needed (RFC 9700
+ * §2.1.1).
+ */
 app.post("/oauth/signin", async (c) => {
-  const started: SignIn = { state: random(), verifier: random() }
+  const started: SignIn = { verifier: random() }
   const { id, redirectURI } = client(c)
   const authorize = new URL("/oauth/authorize", c.env.SUPERCLERK_URL)
   authorize.search = new URLSearchParams({
     response_type: "code",
     client_id: id,
     redirect_uri: redirectURI,
-    state: started.state,
     code_challenge: base64url.encode(await sha256(started.verifier)),
     code_challenge_method: "S256",
     scope: SCOPE,
@@ -156,15 +159,14 @@ app.post("/oauth/signin", async (c) => {
   return c.redirect(authorize.href, 303)
 })
 
-/** Where Superclerk sends the browser back: the code trades for a key, if this browser asked for it. */
+/** Where Superclerk sends the browser back: the code trades for a key with this browser's verifier. */
 app.get("/oauth/callback", async (c) => {
   const started = await unseal<SignIn>(c.env, "signin", read(c, SIGN_IN_COOKIE))
   forget(c, SIGN_IN_COOKIE)
-  const { code, state } = c.req.query()
+  const code = c.req.query("code")
   // The person said no on Superclerk.
   if (code === undefined) return home(c)
-  // A code this browser didn't ask for may be someone else's, sent to sign this browser in to their workspace.
-  if (!started || state !== started.state) return home(c, "This sign-in didn’t start here. Sign in again.")
+  if (!started) return home(c, "This sign-in didn’t start here. Sign in again.")
   const { id, redirectURI } = client(c)
   const answer = await fetch(new URL("/oauth/token", c.env.SUPERCLERK_URL), {
     method: "POST",
@@ -205,20 +207,18 @@ app.post("/oauth/signout", async (c) => {
 })
 
 /**
- * Superclerk's MCP server, for an assistant holding a token from the AI assistants page. The key's scopes decide which
- * tools it lists and runs.
+ * Superclerk's MCP server, for an assistant holding the sign-in token from the AI assistants page. The key's scopes
+ * decide which tools it lists and runs.
  */
 app.all("/mcp", async (c) => {
-  const refuse = (message: string) => c.json({ jsonrpc: "2.0", id: null, error: { code: -32001, message } }, 401)
   const [, token] = /^Bearer (.+)$/i.exec(c.req.header("authorization") ?? "") ?? []
-  const assistant = await unseal<Session>(c.env, "assistant", token)
-  if (!assistant) return refuse("Postclerk doesn’t know this token. Copy a new one from its AI assistants page.")
-  const answer = await superclerk(c, assistant, "/v1/mcp")
-  if (answer.status === 401)
-    return refuse("This token’s sign-in has ended. Copy a new one from Postclerk’s AI assistants page.")
-  // Superclerk's own sign-in can't connect an assistant to Postclerk, so it isn't offered.
-  answer.headers.delete("www-authenticate")
-  return answer
+  const signedIn = await unseal<Session>(c.env, "session", token)
+  const answer = signedIn && (await superclerk(c, signedIn, "/v1/mcp"))
+  if (answer && answer.status !== 401) return answer
+  // An unknown token, or one whose sign-in has ended. Superclerk's own sign-in can't connect an assistant here, so its
+  // challenge isn't passed on.
+  const message = "Copy a new token from Postclerk’s AI assistants page."
+  return c.json({ jsonrpc: "2.0", id: null, error: { code: -32001, message } }, 401)
 })
 
 app.get("/api/session", async (c) => c.json({ signedIn: (await readSession(c)) !== undefined }))
@@ -231,9 +231,8 @@ app.use("/api/*", async (c, next) => {
   await next()
 })
 
-app.get("/api/assistant-token", async (c) =>
-  c.json({ token: await seal(c.env, "assistant", { key: c.var.session.key }, SESSION_SECONDS) }),
-)
+// The same sign-in, for an assistant to send as a Bearer token.
+app.get("/api/assistant-token", (c) => c.json({ token: read(c, SESSION_COOKIE) }))
 
 /** Storage takes browser uploads only from Superclerk's own sites, so a file's bytes pass through here. */
 app.post("/api/upload", async (c) => {
