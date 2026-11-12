@@ -1,29 +1,37 @@
 # Postclerk
 
-A free, open-source social media scheduler. Write a post once and schedule it to Instagram, Facebook, LinkedIn, Threads, TikTok, YouTube and Google Business Profile.
+Schedule posts to Instagram, Facebook, LinkedIn, Threads, TikTok, YouTube and Google Business Profile from one calendar. Free and open source.
 
-Use it at **[postclerk.io](https://postclerk.io)**, or run your own copy on Cloudflare for free.
+Use it at **[postclerk.io](https://postclerk.io)**, or deploy your own copy in one click:
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/surgent-dev/postclerk)
 
 ![The post calendar](public/calendar.png)
 
-It's built on the [Superclerk API](https://docs.superclerk.com), so there's no database to run and no developer app to register with each network. You sign in with Superclerk, connect your accounts through it, and your posts live in your Superclerk workspace.
+Postclerk runs on the [Superclerk API](https://docs.superclerk.com). There's no database to run and no developer app to register with each network: you sign in with Superclerk, connect your accounts through it, and your posts live in your Superclerk workspace.
 
-## What you get
+## What's inside
 
 - A queue, a calendar, drafts and an Instagram feed preview
 - One composer for every network, with per-network captions, media and settings
-- A media library
-- Analytics per account and per post
+- A media library, and analytics per account and per post
 - Choose which pages and profiles each account posts to
 - An MCP server, so Claude Code, Codex, Cursor or VS Code can draft and schedule posts for you
 
-## Run your own
+## Deploy your own
 
-Click **Deploy to Cloudflare** above. Cloudflare copies this repository to your GitHub account, then builds and deploys it as a Worker, which the free plan covers. It asks for one secret, `SESSION_SECRET`: any random string of 32 or more characters, such as `openssl rand -base64 32` prints.
+It takes about two minutes, and Cloudflare's free plan covers it.
 
-Or deploy from your own computer, with [Bun](https://bun.sh):
+1. Click **Deploy to Cloudflare** above and sign in to Cloudflare.
+2. Connect GitHub or GitLab. Cloudflare creates a copy of this repo in your account.
+3. Cloudflare asks for one secret, `SESSION_SECRET`. Paste any long random string: `openssl rand -base64 32` makes one. Leave `SUPERCLERK_URL` as it is.
+4. Deploy, then open the address Cloudflare gives your Worker (it ends in `workers.dev`) and click **Sign in with Superclerk**.
+
+That's it. There's nothing to register with Superclerk, because your copy introduces itself when someone signs in ([How sign-in works](#how-sign-in-works) explains how). Every push to your copy's `main` branch redeploys it.
+
+To use your own domain, open the Worker in Cloudflare and add it under **Settings → Domains & Routes**. Changing `SESSION_SECRET` later signs everyone out.
+
+Rather use the terminal? With [Bun](https://bun.sh):
 
 ```sh
 bun install
@@ -31,9 +39,7 @@ bun run deploy
 openssl rand -base64 32 | bunx wrangler secret put SESSION_SECRET
 ```
 
-Your copy answers at its `workers.dev` address, or at a domain you add in Cloudflare. Superclerk needs nothing set up for it.
-
-## Develop
+## Run it locally
 
 ```sh
 bun install
@@ -41,13 +47,41 @@ echo "SESSION_SECRET=$(openssl rand -base64 32)" > .dev.vars
 bun run dev
 ```
 
-Open <http://localhost:5173> and click **Sign in with Superclerk**. Approve the app in Superclerk (new to it? you make an account on the way), and you're back, signed in.
+Open <http://localhost:5173> and sign in. Superclerk can't reach your computer to read its address, so a local copy signs in as postclerk.io, which allows sending you back to localhost.
 
-Everything in `src/components/social` is a good place to start changing things. Every call to Superclerk in it goes through [`@superclerk/sdk`](https://www.npmjs.com/package/@superclerk/sdk).
+The screens live in `src/components/social`, and the whole server is one file, `worker/index.ts`.
 
-## Use it with AI assistants
+## How sign-in works
 
-Postclerk is also an MCP server, at `/mcp`. Its **AI assistants** page gives you a token and the command for each client, such as:
+Clicking **Sign in with Superclerk** sends you to Superclerk with a request like this (spaces and line breaks added):
+
+```
+https://api.superclerk.com/oauth/authorize
+  ?client_id=https://postclerk.io/oauth/client.json
+  &redirect_uri=https://postclerk.io/oauth/callback
+  &scope=social:write connections:write
+  &apps=instagram facebook-page linkedin-profile linkedin-page threads tiktok youtube google-business-profile
+  &code_challenge=…&state=…
+```
+
+- **`client_id` is a URL.** Superclerk fetches it and reads the app's [client metadata document](https://datatracker.ietf.org/doc/draft-ietf-oauth-client-id-metadata-document/): its name and the addresses it may send you back to. That's why no copy needs registering, and why the approval page names the app by its domain.
+- **`scope` is what the app may do.** `social:write` covers social accounts, posts, media and analytics. `connections:write` covers connecting accounts. Each includes reading.
+- **`apps` narrows it to these networks.** The approval page shows their logos, and the key only sees connections from those apps and can only connect those. LinkedIn shows twice because personal profiles and company pages are separate apps.
+- **Allow sends you back with a one-time code.** The Worker trades it, along with a [PKCE](https://oauth.net/2/pkce/) verifier only it knows, for an API key with exactly that access.
+
+Only workspace admins can approve. You can revoke the key in Superclerk under Settings, Developer API, or by signing out of Postclerk. `SCOPE` and `APPS` sit at the top of `worker/index.ts`.
+
+The Worker itself keeps nothing:
+
+```
+Browser or AI assistant → worker/index.ts on Cloudflare → api.superclerk.com
+```
+
+Your key is encrypted with `SESSION_SECRET` into a cookie that page scripts can't read. On each call the Worker decrypts it and passes the call on to Superclerk, which enforces the key's scopes.
+
+## AI assistants
+
+Postclerk is also an MCP server, at `/mcp`. Its **AI assistants** page gives you a token and a ready command for each client:
 
 ```sh
 claude mcp add --transport http postclerk https://postclerk.io/mcp --header "Authorization: Bearer <token>"
@@ -55,8 +89,7 @@ claude mcp add --transport http postclerk https://postclerk.io/mcp --header "Aut
 
 Assistants can do what your sign-in allows: list your accounts, media and posts, create, edit, reschedule, publish and cancel posts, and connect accounts. Signing out of the browser the token came from disconnects them.
 
-- claude.ai and ChatGPT connect with OAuth from their own servers, which Postclerk's MCP server doesn't offer yet.
-- Assistants can attach images and videos already uploaded, but can't upload new ones yet.
+claude.ai and ChatGPT need OAuth on the MCP server itself, which Postclerk doesn't offer yet. Assistants can attach media you've already uploaded, but can't upload new files.
 
 ## Build on the API
 
@@ -76,24 +109,11 @@ await superclerk.social.posts.create({
 })
 ```
 
-## How it works
-
-```
-Browser or AI assistant → worker/index.ts on Cloudflare → api.superclerk.com
-```
-
-- Signing in is [OAuth with PKCE](https://oauth.net/2/pkce/). `/oauth/signin` sends you to Superclerk to approve the app, and `/oauth/callback` trades the code you come back with for a key. The app asks for the `social:write` and `connections:write` scopes, on the networks it posts to.
-- Superclerk knows each copy by the address of its [client metadata document](https://datatracker.ietf.org/doc/draft-ietf-oauth-client-id-metadata-document/), `/oauth/client.json`, which the Worker serves. Superclerk can't read one from your own computer, so a copy running there signs in as postclerk.io, whose document lists your computer's callback.
-- The Worker keeps nothing. Your key is sealed into your browser's cookie with AES-GCM under `SESSION_SECRET`. Page scripts never see it, and the Worker adds it to each call. **Sign out** revokes it.
-- Superclerk enforces the key's scopes, so the Worker passes API calls and MCP requests on as they are.
-- Photos and videos pass through the Worker on their way to storage, so Cloudflare's 100 MB limit on a request applies to each file.
-- Connecting an account opens the network's own sign-in through a [connect link](https://docs.superclerk.com/connections).
-
 ## Good to know
 
-- Scheduling and publishing use Superclerk's approved apps on each network, so their limits apply. TikTok, for example, requires the creator to review each post, which the composer does. Keep that screen if you change the composer.
+- Posts go out through Superclerk's approved apps on each network, so their limits apply. TikTok, for example, requires the creator to review each post, which the composer does. Keep that screen if you change the composer.
 - Turning on analytics for an account, and TikTok inbox uploads, still happen in the Superclerk app. Postclerk links you there.
-- Upload files over 100 MB in Superclerk's own media library, where Postclerk finds them.
+- Uploads pass through Cloudflare, which takes up to 100 MB per file. Put bigger files in Superclerk's media library, and Postclerk finds them there.
 
 ## License
 
