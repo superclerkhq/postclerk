@@ -17,11 +17,11 @@ const LOOPBACK = ["localhost", "127.0.0.1", "[::1]"]
 // Superclerk can't read a client document on someone's own computer, so a copy running there signs in as
 // postclerk.io, whose document lists this computer's callback.
 const LOCAL_CLIENT_ID = "https://postclerk.io/oauth/client.json"
-// Each sealed value names what it is for, so a token for one purpose never opens another.
-const SESSION = "postclerk_session"
-const SIGN_IN = "postclerk_signin"
-const ASSISTANT = "postclerk_assistant"
-const YEAR = 365 * 86_400
+const SESSION_COOKIE = "postclerk_session"
+const SIGN_IN_COOKIE = "postclerk_signin"
+// How long a sign-in lasts, and how long Superclerk gives a person to approve one.
+const SESSION_SECONDS = 365 * 86_400
+const SIGN_IN_SECONDS = 600
 
 const encoder = new TextEncoder()
 const base64url = (bytes: ArrayBuffer | Uint8Array) =>
@@ -40,17 +40,18 @@ async function cipher(env: Env) {
   return crypto.subtle.importKey("raw", material, "AES-GCM", false, ["encrypt", "decrypt"])
 }
 
-async function seal(env: Env, purpose: string, value: Session | SignIn) {
+/** Seals a value so only this Worker reads it, for one purpose and until it expires. */
+async function seal(env: Env, purpose: string, value: Session | SignIn, seconds: number) {
   const iv = crypto.getRandomValues(new Uint8Array(12))
   const sealed = await crypto.subtle.encrypt(
     { name: "AES-GCM", iv, additionalData: encoder.encode(purpose) },
     await cipher(env),
-    encoder.encode(JSON.stringify(value)),
+    encoder.encode(JSON.stringify({ ...value, expires: Date.now() + seconds * 1000 })),
   )
   return `${base64url(iv)}.${base64url(sealed)}`
 }
 
-/** What a sealed value holds, or undefined when there is none or it was changed or sealed for something else. */
+/** What a sealed value holds. Undefined when there is none, or it was changed, sealed for another purpose or expired. */
 async function unseal<T extends Session | SignIn>(env: Env, purpose: string, token: string | undefined) {
   const key = await cipher(env)
   const [iv, sealed] = token?.split(".") ?? []
@@ -61,23 +62,30 @@ async function unseal<T extends Session | SignIn>(env: Env, purpose: string, tok
       key,
       fromBase64url(sealed),
     )
-    return JSON.parse(new TextDecoder().decode(opened)) as T
+    const value = JSON.parse(new TextDecoder().decode(opened)) as T & { expires: number }
+    return value.expires > Date.now() ? value : undefined
   } catch {
     return undefined
   }
 }
 
-const readCookie = (request: Request, name: string) =>
-  request.headers.get("cookie")?.match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`))?.[1]
+// Over HTTPS a cookie is Secure, and its name keeps other hosts and scripts from setting it. Browsers take neither
+// from a copy on http://localhost, which goes without.
+const https = (url: URL) => url.protocol === "https:"
+const cookieName = (url: URL, name: string) => (https(url) ? `__Host-Http-${name}` : name)
 
-/** A cookie for this app's own requests only, which no script reads. */
-const cookie = (url: URL, name: string, value: string, maxAge: number) =>
-  `${name}=${value}; Max-Age=${maxAge}; Path=/; HttpOnly; SameSite=Lax${url.protocol === "https:" ? "; Secure" : ""}`
+const readCookie = (request: Request, url: URL, name: string) =>
+  request.headers.get("cookie")?.match(new RegExp(`(?:^|;\\s*)${cookieName(url, name)}=([^;]*)`))?.[1]
 
-const failure = (status: number, code: string, message: string) =>
-  Response.json({ error: { code, message } }, { status })
+/**
+ * A cookie no script reads. A Strict one comes only with this app's own requests. A Lax one also comes when another
+ * site sends the browser here, as Superclerk does after a sign-in.
+ */
+const cookie = (url: URL, name: string, value: string, seconds: number, sameSite: "Strict" | "Lax") =>
+  `${cookieName(url, name)}=${value}; Max-Age=${seconds}; Path=/; HttpOnly; SameSite=${sameSite}${https(url) ? "; Secure" : ""}`
 
-const signedOut = () => failure(401, "signed_out", "Sign in with Superclerk first")
+const failure = (status: number, code: string, message: string, headers?: HeadersInit) =>
+  Response.json({ error: { code, message } }, { status, headers })
 
 /** Back to the app, saying why when signing in or out went wrong. */
 function home(problem: string | undefined, ...cookies: string[]) {
@@ -85,6 +93,12 @@ function home(problem: string | undefined, ...cookies: string[]) {
   for (const value of cookies) headers.append("set-cookie", value)
   return new Response(null, { status: 303, headers })
 }
+
+/** No sign-in, or one that is over: the page shows the sign-in screen, and the browser forgets the cookie. */
+const signedOut = (url: URL) =>
+  failure(401, "signed_out", "Sign in with Superclerk first", {
+    "set-cookie": cookie(url, SESSION_COOKIE, "", 0, "Strict"),
+  })
 
 /**
  * Who this copy of the app is, as Superclerk reads it when someone signs in (a Client ID Metadata Document). Its own
@@ -122,15 +136,17 @@ async function signIn(url: URL, env: Env) {
     scope: SCOPE,
     apps: APPS,
   }).toString()
-  const headers = new Headers({ location: authorize.href })
-  headers.append("set-cookie", cookie(url, SIGN_IN, await seal(env, SIGN_IN, started), 600))
-  return new Response(null, { status: 303, headers })
+  const sealed = await seal(env, "signin", started, SIGN_IN_SECONDS)
+  return new Response(null, {
+    status: 303,
+    headers: { location: authorize.href, "set-cookie": cookie(url, SIGN_IN_COOKIE, sealed, SIGN_IN_SECONDS, "Lax") },
+  })
 }
 
 /** Where Superclerk sends the browser back: the code trades for a key, if this browser asked for it. */
 async function finishSignIn(request: Request, url: URL, env: Env) {
-  const started = await unseal<SignIn>(env, SIGN_IN, readCookie(request, SIGN_IN))
-  const done = cookie(url, SIGN_IN, "", 0)
+  const started = await unseal<SignIn>(env, "signin", readCookie(request, url, SIGN_IN_COOKIE))
+  const done = cookie(url, SIGN_IN_COOKIE, "", 0, "Lax")
   const code = url.searchParams.get("code")
   // The person said no on Superclerk.
   if (code === null) return home(undefined, done)
@@ -152,14 +168,16 @@ async function finishSignIn(request: Request, url: URL, env: Env) {
     console.error("Superclerk refused the sign-in code", answer.status, await answer.text())
     return home(`Superclerk couldn’t finish signing you in (${answer.status}). Try again.`, done)
   }
-  const token = (await answer.json()) as { access_token: string }
-  return home(undefined, done, cookie(url, SESSION, await seal(env, SESSION, { key: token.access_token }), YEAR))
+  const { access_token: key } = (await answer.json()) as { access_token: string }
+  const session = await seal(env, "session", { key }, SESSION_SECONDS)
+  return home(undefined, done, cookie(url, SESSION_COOKIE, session, SESSION_SECONDS, "Strict"))
 }
 
 /** Signs this browser out, and asks Superclerk to revoke the key its sign-in gave (RFC 7009). */
 async function signOut(session: Session | undefined, url: URL, env: Env) {
-  const done = cookie(url, SESSION, "", 0)
+  const done = cookie(url, SESSION_COOKIE, "", 0, "Strict")
   if (!session) return home(undefined, done)
+  // The browser is signed out either way, even when Superclerk can't be reached.
   const revoked = await fetch(new URL("/oauth/revoke", env.SUPERCLERK_URL), {
     method: "POST",
     body: new URLSearchParams({ token: session.key }),
@@ -200,7 +218,7 @@ const rpcFailure = (message: string) =>
  */
 async function mcp(request: Request, env: Env) {
   const [, token] = /^Bearer (.+)$/i.exec(request.headers.get("authorization") ?? "") ?? []
-  const session = await unseal<Session>(env, ASSISTANT, token)
+  const session = await unseal<Session>(env, "assistant", token)
   if (!session) return rpcFailure("Postclerk doesn’t know this token. Copy a new one from its AI assistants page.")
   const upstream = await fetch(new URL("/v1/mcp", env.SUPERCLERK_URL), {
     method: request.method,
@@ -242,23 +260,39 @@ async function upload(request: Request, { key }: Session, env: Env) {
   })
 }
 
+async function route(request: Request, url: URL, env: Env) {
+  const origin = request.headers.get("origin")
+  // Pages on other sites can't act with a person's session. "null" names no site, so it never matches.
+  if (origin !== null && origin !== url.origin) return failure(403, "wrong_origin", "Cross-site requests are refused")
+  if (url.pathname === "/mcp") return mcp(request, env)
+  if (url.pathname === "/oauth/client.json") return clientDocument(url)
+  if (url.pathname === "/oauth/callback") return finishSignIn(request, url, env)
+  if (url.pathname === "/oauth/signin" && request.method === "POST") return signIn(url, env)
+  const session = await unseal<Session>(env, "session", readCookie(request, url, SESSION_COOKIE))
+  if (url.pathname === "/oauth/signout" && request.method === "POST") return signOut(session, url, env)
+  if (url.pathname === "/api/session") return Response.json({ signedIn: session !== undefined })
+  if (!url.pathname.startsWith("/api/")) return failure(404, "not_found", "Not found")
+  if (!session) return signedOut(url)
+  if (url.pathname === "/api/assistant-token")
+    return Response.json({ token: await seal(env, "assistant", session, SESSION_SECONDS) })
+  const answer =
+    url.pathname === "/api/upload" && request.method === "POST"
+      ? await upload(request, session, env)
+      : await forward(request, url, session, env)
+  // Superclerk no longer knows the key, as when the person revoked it there: this sign-in is over.
+  return answer.status === 401 ? signedOut(url) : answer
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url)
-    const origin = request.headers.get("origin")
-    // Pages on other sites can't act with a person's session. "null" names no site, so it never matches.
-    if (origin !== null && origin !== url.origin) return failure(403, "wrong_origin", "Cross-site requests are refused")
-    if (url.pathname === "/mcp") return mcp(request, env)
-    if (url.pathname === "/oauth/client.json") return clientDocument(url)
-    if (url.pathname === "/oauth/callback") return finishSignIn(request, url, env)
-    if (url.pathname === "/oauth/signin" && request.method === "POST") return signIn(url, env)
-    const session = await unseal<Session>(env, SESSION, readCookie(request, SESSION))
-    if (url.pathname === "/oauth/signout" && request.method === "POST") return signOut(session, url, env)
-    if (url.pathname === "/api/session") return Response.json({ signedIn: session !== undefined })
-    if (!url.pathname.startsWith("/api/")) return failure(404, "not_found", "Not found")
-    if (!session) return signedOut()
-    if (url.pathname === "/api/assistant-token") return Response.json({ token: await seal(env, ASSISTANT, session) })
-    if (url.pathname === "/api/upload" && request.method === "POST") return upload(request, session, env)
-    return forward(request, url, session, env)
+    try {
+      return await route(request, url, env)
+    } catch (error) {
+      // Superclerk couldn't be reached, or this copy is set up wrong. The Worker's logs say which.
+      console.error(error)
+      const problem = "Postclerk hit a problem. Try again in a moment."
+      return url.pathname.startsWith("/oauth/") ? home(problem) : failure(502, "bad_gateway", problem)
+    }
   },
 } satisfies ExportedHandler<Env>

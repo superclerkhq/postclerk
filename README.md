@@ -69,7 +69,7 @@ https://api.superclerk.com/oauth/authorize
 - **`apps` narrows it to these networks.** The approval page shows their logos, and the key only sees connections from those apps and can only connect those. LinkedIn shows twice because personal profiles and company pages are separate apps.
 - **Allow sends you back with a one-time code.** The Worker trades it, along with a [PKCE](https://oauth.net/2/pkce/) verifier only it knows, for an API key with exactly that access.
 
-Only workspace admins can approve. You can revoke the key in Superclerk under Settings, Developer API, or by signing out of Postclerk. `SCOPE` and `APPS` sit at the top of `worker/index.ts`.
+Only workspace admins can approve. Signing out of Postclerk revokes the key. So does removing it in Superclerk under Settings, Developer API, and Postclerk then returns to its sign-in screen on its next call. `SCOPE` and `APPS` sit at the top of `worker/index.ts`.
 
 The Worker itself keeps nothing:
 
@@ -77,7 +77,7 @@ The Worker itself keeps nothing:
 Browser or AI assistant → worker/index.ts on Cloudflare → api.superclerk.com
 ```
 
-Your key is encrypted with `SESSION_SECRET` into a cookie that page scripts can't read. On each call the Worker decrypts it and passes the call on to Superclerk, which enforces the key's scopes.
+Your key is encrypted with `SESSION_SECRET` into a cookie that lasts a year. Page scripts can't read it, and the browser sends it only with Postclerk's own requests, over HTTPS. On each call the Worker decrypts it and passes the call on to Superclerk, which enforces the key's scopes. This is the [backend-for-frontend pattern](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-browser-based-apps) for browser apps.
 
 ## AI assistants
 
