@@ -147,8 +147,12 @@ async function finishSignIn(request: Request, url: URL, env: Env) {
       code_verifier: started.verifier,
     }),
   })
-  const token = (await answer.json()) as { access_token: string; error_description: string }
-  if (!answer.ok) return home(token.error_description, done)
+  if (!answer.ok) {
+    // Whatever Superclerk said goes to the Worker's logs; the person learns that signing in failed, never silently.
+    console.error("Superclerk refused the sign-in code", answer.status, await answer.text())
+    return home(`Superclerk couldn’t finish signing you in (${answer.status}). Try again.`, done)
+  }
+  const token = (await answer.json()) as { access_token: string }
   return home(undefined, done, cookie(url, SESSION, await seal(env, SESSION, { key: token.access_token }), YEAR))
 }
 
