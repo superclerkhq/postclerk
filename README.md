@@ -119,4 +119,4 @@ await superclerk.social.posts.create({
 
 ## License
 
-[MIT](./LICENSE). The Claude Code and Codex logos come from [LobeHub Icons](https://github.com/lobehub/lobe-icons), also MIT. Each mark belongs to its owner.
+[MIT](./LICENSE). The Claude Code, Codex, Cursor, Grok, Gemini and MCP logos come from [LobeHub Icons](https://github.com/lobehub/lobe-icons), also MIT. Each mark belongs to its owner.

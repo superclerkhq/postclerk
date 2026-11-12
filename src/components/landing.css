@@ -78,6 +78,10 @@
   transition: color 150ms;
 }
 
+.lp-nav-signin {
+  cursor: pointer;
+}
+
 .lp-nav-link:hover {
   color: var(--ink);
 }
@@ -217,23 +221,29 @@
   margin-top: 32px;
 }
 
-.lp-networks {
+.lp-rows {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 14px 36px;
   margin-top: 36px;
-  color: var(--ink-3);
-  font-size: 13.5px;
 }
 
-.lp-networks ul {
+.lp-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--ink-3);
+  font-size: 13.5px;
+  white-space: nowrap;
+}
+
+.lp-row ul {
   display: flex;
   gap: 6px;
 }
 
-.lp-networks li {
+.lp-row li {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -243,7 +253,7 @@
   background: var(--fill);
 }
 
-.lp-networks img {
+.lp-row img {
   width: 18px;
   height: 18px;
   object-fit: contain;
@@ -362,11 +372,39 @@
 
 /* ── Agents: the terminal, and the queue it fills ── */
 
+.lp-agents {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  max-width: 880px;
+  margin: 32px auto 0;
+}
+
+.lp-agents li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 15px 0 11px;
+  border-radius: 11px;
+  background: var(--fill);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.lp-agents img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+
 .lp-agent {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
   gap: 12px;
-  margin-top: 48px;
+  margin-top: 40px;
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: 22px;
@@ -978,7 +1016,8 @@
     padding: 8px;
   }
 
-  .lp-nav-link span {
+  .lp-nav-link span,
+  .lp-nav-signin {
     display: none;
   }
 }

@@ -1,4 +1,5 @@
 import {
+  ArrowRight,
   ArrowUpRight,
   CalendarBlank,
   CaretRight,
@@ -30,6 +31,16 @@ const NETWORKS: [SocialAccount["platform"], string][] = [
   ["tiktok", "TikTok"],
   ["youtube", "YouTube"],
   ["googlebusiness", "Google Business Profile"],
+]
+// Clients that take an MCP server's URL with an Authorization header, which is all /mcp asks for.
+const AGENTS: [name: string, logo: string][] = [
+  ["Claude Code", "/logos/claudecode.svg"],
+  ["Codex", "/logos/codex.svg"],
+  ["Cursor", "/logos/cursor.svg"],
+  ["Grok Build", "/logos/grok.svg"],
+  // Google's agent on Gemini; its own mark isn't in /logos, so it shows Gemini's.
+  ["Antigravity", "/logos/gemini.svg"],
+  ["Any MCP client", "/logos/mcp.svg"],
 ]
 
 // The example business is the one on calendar.png, so every drawing below tells the same week.
@@ -91,7 +102,7 @@ const FAQ: [question: string, answer: ReactNode][] = [
   ],
   [
     "How do I connect my AI agent?",
-    "Open AI assistants in Postclerk. It gives you a ready command for Claude Code and Codex, and a server URL and header for Cursor, VS Code or any other MCP client.",
+    "Open AI assistants in Postclerk. It gives you a ready command for Claude Code and Codex, and a server URL and header for Cursor, Grok Build, Antigravity, VS Code or any other MCP client.",
   ],
   [
     "What can Postclerk see?",
@@ -118,7 +129,8 @@ export function Landing({ problem }: { problem?: string }) {
               <GithubLogo size={17} weight="fill" aria-hidden />
               <span>GitHub</span>
             </a>
-            <SignIn className="lp-btn lp-btn-dark lp-btn-sm">Sign in</SignIn>
+            <SignIn className="lp-nav-link lp-nav-signin">Sign in</SignIn>
+            <SignIn className="lp-btn lp-btn-dark lp-btn-sm">Get started free</SignIn>
           </nav>
         </div>
       </header>
@@ -138,21 +150,36 @@ export function Landing({ problem }: { problem?: string }) {
           </p>
         )}
         <div className="lp-actions">
-          <SignIn className="lp-btn lp-btn-dark">Sign in with Superclerk</SignIn>
+          <SignIn className="lp-btn lp-btn-dark">
+            Get started free
+            <ArrowRight size={16} weight="bold" aria-hidden />
+          </SignIn>
           <a href={REPOSITORY} className="lp-btn lp-btn-soft">
             <GithubLogo size={17} weight="fill" aria-hidden />
             View the code
           </a>
         </div>
-        <div className="lp-networks">
-          <span>Posts to</span>
-          <ul>
-            {NETWORKS.map(([platform, name]) => (
-              <li key={platform} title={name}>
-                <img src={SocialPlatformLogos[platform]} alt={name} />
-              </li>
-            ))}
-          </ul>
+        <div className="lp-rows">
+          <div className="lp-row">
+            <span>Works with</span>
+            <ul>
+              {AGENTS.map(([name, logo]) => (
+                <li key={name} title={name}>
+                  <img src={logo} alt={name} />
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="lp-row">
+            <span>Posts to</span>
+            <ul>
+              {NETWORKS.map(([platform, name]) => (
+                <li key={platform} title={name}>
+                  <img src={SocialPlatformLogos[platform]} alt={name} />
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </section>
 
@@ -174,9 +201,17 @@ export function Landing({ problem }: { problem?: string }) {
       <section className="lp-section" aria-labelledby="lp-agents">
         <div className="lp-wrap">
           <Head icon={<Robot weight="bold" />} label="AI agents" id="lp-agents" title="Hand the posting to your agent">
-            Connect Claude Code, Codex, Cursor or any MCP client. It writes, schedules, moves and publishes posts as
-            you, and they land in your calendar.
+            Add Postclerk to your agent as an MCP server. It writes, schedules, moves and publishes posts as you, and
+            they land in your calendar.
           </Head>
+          <ul className="lp-agents">
+            {AGENTS.map(([name, logo]) => (
+              <li key={name}>
+                <img src={logo} alt="" />
+                {name}
+              </li>
+            ))}
+          </ul>
           <div className="lp-agent">
             <div className="lp-term" aria-label="Claude Code scheduling three posts through Postclerk" role="img">
               <div className="lp-term-bar">
@@ -374,7 +409,10 @@ export function Landing({ problem }: { problem?: string }) {
       <section className="lp-close" aria-labelledby="lp-close">
         <h2 id="lp-close">Let your agent do the posting</h2>
         <p>Free and open source. New to Superclerk? You’ll make an account on the way.</p>
-        <SignIn className="lp-btn lp-btn-dark">Sign in with Superclerk</SignIn>
+        <SignIn className="lp-btn lp-btn-dark">
+          Get started free
+          <ArrowRight size={16} weight="bold" aria-hidden />
+        </SignIn>
       </section>
 
       <footer className="lp-wrap lp-foot">
