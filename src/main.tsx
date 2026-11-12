@@ -57,7 +57,7 @@ function Workspace() {
           </button>
         </form>
         <a
-          href="https://github.com/surgent-dev/postclerk"
+          href="https://github.com/superclerkhq/postclerk"
           target="_blank"
           rel="noreferrer"
           className="shrink-0 px-4 py-3 text-xs text-muted-foreground hover:text-foreground"

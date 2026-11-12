@@ -6,7 +6,7 @@ import { PlatformLogo } from "@/components/social/social-logo"
 import { SocialPlatformLogos } from "@/lib/social"
 import { cn } from "@/lib/utils"
 
-const REPOSITORY = "https://github.com/surgent-dev/postclerk"
+const REPOSITORY = "https://github.com/superclerkhq/postclerk"
 const SUBMIT = cn(
   buttonClass("primary", "lg"),
   "mt-8 h-11 w-full justify-center rounded-[10px] text-[14px] sm:w-auto sm:px-6",

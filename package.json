@@ -5,7 +5,7 @@
   "description": "Free, open-source social media scheduler. Sign in with Superclerk.",
   "license": "MIT",
   "homepage": "https://postclerk.io",
-  "repository": "github:surgent-dev/postclerk",
+  "repository": "github:superclerkhq/postclerk",
   "type": "module",
   "scripts": {
     "dev": "vite dev",

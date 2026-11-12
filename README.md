@@ -4,7 +4,7 @@ Schedule posts to Instagram, Facebook, LinkedIn, Threads, TikTok, YouTube and Go
 
 Use it at **[postclerk.io](https://postclerk.io)**, or deploy your own copy in one click:
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/surgent-dev/postclerk)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/superclerkhq/postclerk)
 
 ![The post calendar](public/calendar.png)
 
