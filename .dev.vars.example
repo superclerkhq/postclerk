@@ -1,0 +1,2 @@
+# Seals each person's sign-in into a cookie. Any random string of 32 or more characters, such as: openssl rand -base64 32
+SESSION_SECRET=

@@ -15,7 +15,7 @@ import { SignInScreen } from "@/components/sign-in-screen"
 import { AssistantsView } from "@/components/social/social-assistants"
 import { SOCIAL_VIEWS, socialPages, SocialMobileNav, type SocialViewName } from "@/components/social/social-menu"
 import { SocialView } from "@/components/social/social-view"
-import { appConfigQuery } from "@/lib/app-config"
+import { sessionQuery } from "@/lib/session"
 import "./index.css"
 
 // iOS Safari ignores interactive-widget=resizes-content, so the frame follows the visual viewport instead.
@@ -33,12 +33,12 @@ viewport.addEventListener("scroll", followViewport)
 type NamedView = Exclude<SocialViewName, "queue">
 const NAMED_VIEWS = new Set<string>(SOCIAL_VIEWS.filter((view) => view !== "queue"))
 
-/** The app once it is signed in to Superclerk, and the sign-in screen before. */
+/** The app once this browser is signed in to Superclerk, and the sign-in screen before. */
 function Home() {
-  const config = useQuery(appConfigQuery)
+  const session = useQuery(sessionQuery)
   const { problem } = useSearch({ from: "/" })
-  if (!config.data) return null
-  return config.data.signedIn ? <Workspace /> : <SignInScreen problem={problem} />
+  if (!session.data) return null
+  return session.data.signedIn ? <Workspace /> : <SignInScreen problem={problem} />
 }
 
 function Workspace() {
@@ -46,23 +46,23 @@ function Workspace() {
   return (
     <div className="app-viewport flex min-h-0 overflow-hidden bg-background pt-[env(safe-area-inset-top)] text-foreground">
       <aside className="hidden w-[240px] shrink-0 flex-col bg-shelf shadow-[inset_-0.5px_0_0_var(--chrome-edge)] sm:flex">
-        <div className="superclerk-wordmark flex h-12 shrink-0 items-center gap-2 px-4 text-[18px] leading-none">
+        <div className="wordmark flex h-12 shrink-0 items-center gap-2 px-4 text-[18px] leading-none">
           <img src="/favicon.svg" alt="" className="size-5" />
-          Social
+          Postclerk
         </div>
         <ShelfPages label="Social" pages={socialPages(view, account)} />
-        <form method="post" action="/signout" className="shrink-0">
+        <form method="post" action="/oauth/signout" className="shrink-0">
           <button type="submit" className="px-4 pt-3 text-xs text-muted-foreground hover:text-foreground">
             Sign out
           </button>
         </form>
         <a
-          href="https://docs.superclerk.com"
+          href="https://github.com/surgent-dev/postclerk"
           target="_blank"
           rel="noreferrer"
           className="shrink-0 px-4 py-3 text-xs text-muted-foreground hover:text-foreground"
         >
-          Built on the Superclerk API
+          Open source, on the Superclerk API
         </a>
       </aside>
       <main className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">

@@ -1,10 +1,14 @@
-# Superclerk Social
+# Postclerk
 
 A free, open-source social media scheduler. Write a post once and schedule it to Instagram, Facebook, LinkedIn, Threads, TikTok, YouTube and Google Business Profile.
 
-![The post calendar](docs/calendar.png)
+Use it at **[postclerk.io](https://postclerk.io)**, or run your own copy on Cloudflare for free.
 
-It's built on the [Superclerk API](https://docs.superclerk.com), so there's no database to run and no developer app to register with each network. You connect your accounts through Superclerk, and your posts live in your Superclerk workspace.
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/surgent-dev/postclerk)
+
+![The post calendar](public/calendar.png)
+
+It's built on the [Superclerk API](https://docs.superclerk.com), so there's no database to run and no developer app to register with each network. You sign in with Superclerk, connect your accounts through it, and your posts live in your Superclerk workspace.
 
 ## What you get
 
@@ -13,42 +17,46 @@ It's built on the [Superclerk API](https://docs.superclerk.com), so there's no d
 - A media library
 - Analytics per account and per post
 - Choose which pages and profiles each account posts to
-- An MCP server, so Claude Code, Cursor, VS Code or Codex can draft and schedule posts for you
+- An MCP server, so Claude Code, Codex, Cursor or VS Code can draft and schedule posts for you
 
-## Run it
+## Run your own
 
-You need [Bun](https://bun.sh).
+Click **Deploy to Cloudflare** above. Cloudflare copies this repository to your GitHub account, then builds and deploys it as a Worker, which the free plan covers. It asks for one secret, `SESSION_SECRET`: any random string of 32 or more characters, such as `openssl rand -base64 32` prints.
+
+Or deploy from your own computer, with [Bun](https://bun.sh):
 
 ```sh
 bun install
+bun run deploy
+openssl rand -base64 32 | bunx wrangler secret put SESSION_SECRET
+```
+
+Your copy answers at its `workers.dev` address, or at a domain you add in Cloudflare. Superclerk needs nothing set up for it.
+
+## Develop
+
+```sh
+bun install
+echo "SESSION_SECRET=$(openssl rand -base64 32)" > .dev.vars
 bun run dev
 ```
 
-Open <http://localhost:3000> and click **Sign in with Superclerk**. Approve the app in Superclerk (new to it? you make an account on the way), and you're back in the app, signed in. It gets a key that can only post and connect accounts on the networks the app supports, kept in `.env`. **Sign out** revokes it.
+Open <http://localhost:5173> and click **Sign in with Superclerk**. Approve the app in Superclerk (new to it? you make an account on the way), and you're back, signed in.
 
-Rather paste a key? Create one with Full access under Settings, Developer API in Superclerk, and set it as `SUPERCLERK_API_KEY` in `.env`.
-
-To run it in production:
-
-```sh
-bun run build
-bun run start
-```
-
-It answers only on your own computer unless you set `HOST`. To put it on a server, also set `APP_PASSWORD`: anyone who can open the app can post to your accounts.
+Everything in `src/components/social` is a good place to start changing things. Every call to Superclerk in it goes through [`@superclerk/sdk`](https://www.npmjs.com/package/@superclerk/sdk).
 
 ## Use it with AI assistants
 
-The app is also an MCP server, at `/mcp`. Its **AI assistants** page has the commands for each client, such as the one below, and on your own computer one-click installs for Cursor and VS Code.
+Postclerk is also an MCP server, at `/mcp`. Its **AI assistants** page gives you a token and the command for each client, such as:
 
 ```sh
-claude mcp add --transport http superclerk-social http://localhost:3000/mcp
+claude mcp add --transport http postclerk https://postclerk.io/mcp --header "Authorization: Bearer <token>"
 ```
 
-Assistants get Superclerk's Social tools and nothing else. They can list your accounts, media and posts, and create, edit, reschedule, publish and cancel posts. Off your own computer, they send `APP_PASSWORD` as a Bearer token.
+Assistants can do what your sign-in allows: list your accounts, media and posts, create, edit, reschedule, publish and cancel posts, and connect accounts. Signing out of the browser the token came from disconnects them.
 
-- claude.ai and ChatGPT connect from their own servers, with OAuth, so they can't reach a copy running on your computer.
-- Assistants can attach images and videos already uploaded in the app, but can't upload new ones yet.
+- claude.ai and ChatGPT connect with OAuth from their own servers, which Postclerk's MCP server doesn't offer yet.
+- Assistants can attach images and videos already uploaded, but can't upload new ones yet.
 
 ## Build on the API
 
@@ -71,23 +79,22 @@ await superclerk.social.posts.create({
 ## How it works
 
 ```
-Browser or AI assistant → server.ts (holds your API key) → api.superclerk.com
+Browser or AI assistant → worker/index.ts on Cloudflare → api.superclerk.com
 ```
 
-- Signing in is [OAuth with PKCE](https://oauth.net/2/pkce/): `server.ts` sends you to Superclerk to approve the app, and trades the code you come back with for the key. It asks for the `social:write` and `connections:write` scopes, on the networks the app posts to.
-- On your computer Superclerk knows the app as `superclerk-social`. On a server, the app's address must use HTTPS, and the app introduces itself with its [client metadata document](https://datatracker.ietf.org/doc/draft-ietf-oauth-client-id-metadata-document/) at `/oauth/client.json`, which Superclerk reads when you sign in.
-- The browser uses [`@superclerk/sdk`](https://www.npmjs.com/package/@superclerk/sdk) and never sees your key. `server.ts` adds it, and only forwards the parts of the API this app uses.
-- AI assistants connect to `/mcp`, which passes on Superclerk's own MCP tools for Social and refuses every other tool.
-- Photos and videos pass through `server.ts` to storage.
+- Signing in is [OAuth with PKCE](https://oauth.net/2/pkce/). `/oauth/signin` sends you to Superclerk to approve the app, and `/oauth/callback` trades the code you come back with for a key. The app asks for the `social:write` and `connections:write` scopes, on the networks it posts to.
+- Superclerk knows each copy by the address of its [client metadata document](https://datatracker.ietf.org/doc/draft-ietf-oauth-client-id-metadata-document/), `/oauth/client.json`, which the Worker serves. Superclerk can't read one from your own computer, so a copy running there signs in as postclerk.io, whose document lists your computer's callback.
+- The Worker keeps nothing. Your key is sealed into your browser's cookie with AES-GCM under `SESSION_SECRET`. Page scripts never see it, and the Worker adds it to each call. **Sign out** revokes it.
+- Superclerk enforces the key's scopes, so the Worker passes API calls and MCP requests on as they are.
+- Photos and videos pass through the Worker on their way to storage, so Cloudflare's 100 MB limit on a request applies to each file.
 - Connecting an account opens the network's own sign-in through a [connect link](https://docs.superclerk.com/connections).
-
-Everything in `src/components/social` is a good place to start changing things. Every call to Superclerk in it goes through the SDK.
 
 ## Good to know
 
 - Scheduling and publishing use Superclerk's approved apps on each network, so their limits apply. TikTok, for example, requires the creator to review each post, which the composer does. Keep that screen if you change the composer.
-- Turning on analytics for an account, and TikTok inbox uploads, still happen in the Superclerk app. The app links you there.
+- Turning on analytics for an account, and TikTok inbox uploads, still happen in the Superclerk app. Postclerk links you there.
+- Upload files over 100 MB in Superclerk's own media library, where Postclerk finds them.
 
 ## License
 
-[MIT](./LICENSE). The Cursor, Claude Code and Codex logos come from [LobeHub Icons](https://github.com/lobehub/lobe-icons) and the VS Code mark from [GitHub Octicons](https://github.com/primer/octicons), both MIT. Each mark belongs to its owner.
+[MIT](./LICENSE). The Claude Code and Codex logos come from [LobeHub Icons](https://github.com/lobehub/lobe-icons), also MIT. Each mark belongs to its owner.

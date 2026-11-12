@@ -313,8 +313,8 @@ export async function uploadSocialFile(input: {
     storageAccess: input.storageAccess,
   })
   const sha256 = await socialFileHash(input.file, input.signal)
-  // Storage takes browser uploads only from Superclerk's own sites, so the bytes go through this app's server.
-  const response = await fetch("/upload", {
+  // Storage takes browser uploads only from Superclerk's own sites, so the bytes go through this app's Worker.
+  const response = await fetch("/api/upload", {
     method: "POST",
     headers: {
       "idempotency-key": input.idempotencyKey,
@@ -324,6 +324,11 @@ export async function uploadSocialFile(input: {
     signal: input.signal,
   })
   input.signal.throwIfAborted()
+  // Cloudflare refuses a request over 100 MB before it reaches the Worker.
+  if (response.status === 413)
+    throw new Error(
+      "Files over 100 MB can’t pass through Postclerk yet. Upload this one in Superclerk’s media library.",
+    )
   if (!response.ok) throw new Error(((await response.json()) as { error: { message: string } }).error.message)
   return (await response.json()) as SocialAsset
 }

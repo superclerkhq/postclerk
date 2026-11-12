@@ -1,15 +1,28 @@
 {
-  "name": "superclerk-social",
-  "version": "0.1.0",
+  "name": "postclerk",
+  "version": "0.2.0",
   "private": true,
-  "description": "Free, open-source social media scheduler built on the Superclerk API",
+  "description": "Free, open-source social media scheduler. Sign in with Superclerk.",
   "license": "MIT",
+  "homepage": "https://postclerk.io",
+  "repository": "github:surgent-dev/postclerk",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -k -n server,web \"PORT=3001 bun --watch server.ts\" \"vite --port 3000\"",
+    "dev": "vite dev",
     "build": "vite build",
-    "start": "bun server.ts",
-    "typecheck": "tsc --noEmit"
+    "preview": "vite build && vite preview",
+    "deploy": "vite build && wrangler deploy",
+    "typecheck": "tsc && tsc -p worker"
+  },
+  "cloudflare": {
+    "bindings": {
+      "SESSION_SECRET": {
+        "description": "Seals each person's sign-in into a cookie. Any random string of 32 or more characters, such as `openssl rand -base64 32` prints."
+      },
+      "SUPERCLERK_URL": {
+        "description": "Superclerk's API. Keep `https://api.superclerk.com`."
+      }
+    }
   },
   "dependencies": {
     "@fontsource/inter": "5.2.8",
@@ -31,16 +44,18 @@
     "zod": "4.1.8"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "1.67.0",
+    "@cloudflare/workers-types": "5.20261031.1",
     "@tailwindcss/vite": "4.1.11",
-    "@types/bun": "1.4.3",
+    "@types/node": "24.19.2",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^5.0.0",
-    "concurrently": "9.2.1",
     "prettier": "3.6.2",
     "tailwindcss": "4.1.11",
     "typescript": "5.8.2",
-    "vite": "7.1.4"
+    "vite": "7.1.4",
+    "wrangler": "4.156.2"
   },
   "prettier": {
     "semi": false,
