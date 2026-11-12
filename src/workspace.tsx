@@ -1,5 +1,6 @@
 import { useSearch } from "@tanstack/react-router"
 
+import { PostclerkMark } from "@/components/common/postclerk-mark"
 import { ShelfPages } from "@/components/shelf-link"
 import { AssistantsView } from "@/components/social/social-assistants"
 import { socialPages, SocialMobileNav } from "@/components/social/social-menu"
@@ -12,7 +13,7 @@ export default function Workspace({ workspace }: { workspace: string }) {
     <div className="app-viewport flex min-h-0 overflow-hidden bg-background pt-[env(safe-area-inset-top)] text-foreground">
       <aside className="hidden w-[240px] shrink-0 flex-col bg-shelf shadow-[inset_-0.5px_0_0_var(--chrome-edge)] sm:flex">
         <div className="wordmark flex h-12 shrink-0 items-center gap-2 px-4 text-[18px] leading-none">
-          <img src="/favicon.svg" alt="" className="size-5" />
+          <PostclerkMark className="size-5" />
           Postclerk
         </div>
         <ShelfPages label="Social" pages={socialPages(view, account)} />

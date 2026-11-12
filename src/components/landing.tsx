@@ -18,6 +18,7 @@ import {
 import type { ReactNode } from "react"
 
 import type { SocialAccount } from "@/api/social"
+import { PostclerkMark } from "@/components/common/postclerk-mark"
 import { SocialPlatformLogos } from "@/lib/platform-logos"
 import "./landing.css"
 
@@ -121,7 +122,7 @@ export function Landing({ problem }: { problem?: string }) {
       <header className="lp-nav">
         <div className="lp-wrap lp-nav-row">
           <a href="/" className="wordmark lp-logo">
-            <img src="/favicon.svg" alt="" />
+            <PostclerkMark className="lp-mark" />
             Postclerk
           </a>
           <nav className="lp-nav-links">
@@ -417,7 +418,7 @@ export function Landing({ problem }: { problem?: string }) {
 
       <footer className="lp-wrap lp-foot">
         <span className="wordmark lp-logo">
-          <img src="/favicon.svg" alt="" />
+          <PostclerkMark className="lp-mark" />
           Postclerk
         </span>
         <span className="lp-foot-links">
