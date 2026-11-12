@@ -1,6 +1,6 @@
 import * as React from "react"
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu"
-import { Check, Search } from "lucide-react"
+import { Check, MagnifyingGlass } from "@phosphor-icons/react"
 
 import { FLOATING_SURFACE, PRESS } from "@/components/ui/styles"
 import { cn } from "@/lib/utils"
@@ -75,7 +75,7 @@ const DropdownMenuRadioItem = React.forwardRef<
   >
     {children}
     <DropdownMenuPrimitive.ItemIndicator className="absolute right-2 flex items-center">
-      <Check className="size-4 text-brand" aria-hidden />
+      <Check weight="bold" className="size-4 text-brand" aria-hidden />
     </DropdownMenuPrimitive.ItemIndicator>
   </DropdownMenuPrimitive.RadioItem>
 ))
@@ -169,7 +169,7 @@ function DropdownMenuSearch({
       }}
     >
       <div className="flex h-10 items-center gap-2 px-3 shadow-[inset_0_-0.5px_0_var(--chrome-edge)]">
-        <Search className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+        <MagnifyingGlass weight="bold" className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
         <input
           ref={inputRef}
           autoFocus

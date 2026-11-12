@@ -1,4 +1,4 @@
-import { StrictMode } from "react"
+import { lazy, StrictMode, Suspense } from "react"
 import { createRoot } from "react-dom/client"
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query"
 import { createRootRoute, createRoute, createRouter, RouterProvider, useSearch } from "@tanstack/react-router"
@@ -10,13 +10,12 @@ import "@fontsource/inter/latin-700.css"
 import "@fontsource/jetbrains-mono/latin-400.css"
 import "@fontsource/outfit/latin-600.css"
 
-import { ShelfPages } from "@/components/shelf-link"
 import { Landing } from "@/components/landing"
-import { AssistantsView } from "@/components/social/social-assistants"
-import { SOCIAL_VIEWS, socialPages, SocialMobileNav, type SocialViewName } from "@/components/social/social-menu"
-import { SocialView } from "@/components/social/social-view"
+import { SOCIAL_VIEWS, type SocialViewName } from "@/components/social/social-pages"
 import { sessionQuery } from "@/lib/session"
 import "./index.css"
+
+const Workspace = lazy(() => import("@/workspace"))
 
 // iOS Safari ignores interactive-widget=resizes-content, so the frame follows the visual viewport instead.
 const viewport = window.visualViewport!
@@ -38,40 +37,12 @@ function Home() {
   const session = useQuery(sessionQuery)
   const { problem } = useSearch({ from: "/" })
   if (!session.data) return null
-  return session.data.signedIn ? <Workspace /> : <Landing problem={problem} />
-}
-
-function Workspace() {
-  const { view = "queue", account } = useSearch({ from: "/" })
+  const { workspace } = session.data
+  if (workspace === null) return <Landing problem={problem} />
   return (
-    <div className="app-viewport flex min-h-0 overflow-hidden bg-background pt-[env(safe-area-inset-top)] text-foreground">
-      <aside className="hidden w-[240px] shrink-0 flex-col bg-shelf shadow-[inset_-0.5px_0_0_var(--chrome-edge)] sm:flex">
-        <div className="wordmark flex h-12 shrink-0 items-center gap-2 px-4 text-[18px] leading-none">
-          <img src="/favicon.svg" alt="" className="size-5" />
-          Postclerk
-        </div>
-        <ShelfPages label="Social" pages={socialPages(view, account)} />
-        <form method="post" action="/oauth/signout" className="shrink-0">
-          <button type="submit" className="px-4 pt-3 text-xs text-muted-foreground hover:text-foreground">
-            Sign out
-          </button>
-        </form>
-        <a
-          href="https://github.com/superclerkhq/postclerk"
-          target="_blank"
-          rel="noreferrer"
-          className="shrink-0 px-4 py-3 text-xs text-muted-foreground hover:text-foreground"
-        >
-          Open source, on the Superclerk API
-        </a>
-      </aside>
-      <main className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
-        <header className="flex h-12 shrink-0 items-center border-b border-border/70 px-2 sm:hidden">
-          <SocialMobileNav />
-        </header>
-        {view === "assistants" ? <AssistantsView /> : <SocialView view={view} accountId={account} />}
-      </main>
-    </div>
+    <Suspense>
+      <Workspace workspace={workspace} />
+    </Suspense>
   )
 }
 

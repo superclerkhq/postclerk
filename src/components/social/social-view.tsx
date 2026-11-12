@@ -20,7 +20,7 @@ import { SocialAnalytics } from "./social-analytics"
 import { PlatformLogo } from "./social-logo"
 import { Composer, localWhen, scheduledInstant, WhenFields, type When } from "./social-composer"
 import { MediaPreview } from "./social-media"
-import { socialPage, type SocialViewName } from "./social-menu"
+import { socialPage, type SocialViewName } from "./social-pages"
 import { TikTokDeclaration, TikTokPublishing, TikTokInboxNotice } from "./social-platform-fields"
 import { CalendarView, FeedView, monthRange, POST_STATUS_LABELS, PostList, postNeedsAttention } from "./social-views"
 

@@ -1,4 +1,4 @@
-import { Check, Copy, X } from "lucide-react"
+import { Check, Copy, X } from "@phosphor-icons/react"
 
 import { useCopy } from "@/hooks/use-copy"
 
@@ -15,11 +15,11 @@ export function CopyButton({ value, label }: { value: string; label: string }) {
       className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground"
     >
       {state === "copied" ? (
-        <Check className="size-3.5 text-success" />
+        <Check weight="bold" className="size-3.5 text-success" />
       ) : state === "failed" ? (
-        <X className="size-3.5 text-destructive" />
+        <X weight="bold" className="size-3.5 text-destructive" />
       ) : (
-        <Copy className="size-3.5" />
+        <Copy weight="bold" className="size-3.5" />
       )}
       <span aria-live="polite" className="sr-only">
         {state === "idle" ? "" : text}

@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils"
-import { Loader2 } from "lucide-react"
+import { CircleNotch } from "@phosphor-icons/react"
 import type { ReactNode } from "react"
 
 export function EmptyState({
@@ -28,7 +28,7 @@ export function EmptyState({
 export function LoadingState({ message }: { message?: string }) {
   return (
     <div className="flex items-center justify-center gap-2 py-16 text-muted-foreground">
-      <Loader2 className="h-4 w-4 animate-spin" />
+      <CircleNotch weight="bold" className="h-4 w-4 animate-spin" />
       {message && <p className="text-xs">{message}</p>}
     </div>
   )

@@ -1,5 +1,5 @@
 import type { SocialAccount } from "@/api/social"
-import { SocialPlatformLogos } from "@/lib/social"
+import { SocialPlatformLogos } from "@/lib/platform-logos"
 import { cn } from "@/lib/utils"
 
 /**

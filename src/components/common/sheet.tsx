@@ -1,5 +1,5 @@
 import * as Dialog from "@radix-ui/react-dialog"
-import { ArrowLeft, X } from "lucide-react"
+import { ArrowLeft, X } from "@phosphor-icons/react"
 import type { ReactNode } from "react"
 
 import { ReturnFocusOnClose } from "@/components/ui/dialog"
@@ -65,7 +65,7 @@ export function SheetContent({
         {children}
         {closeButton && (
           <Dialog.Close disabled={!dismissible} className={cn(PANEL_ICON_BUTTON, "absolute right-4 top-3.5")}>
-            <X className="size-4" />
+            <X weight="bold" className="size-4" />
             <span className="sr-only">Close</span>
           </Dialog.Close>
         )}
@@ -100,7 +100,7 @@ export function SheetHeader({
           aria-label={`Back to ${back.label}`}
           className={cn(PANEL_ICON_BUTTON, "-ml-1.5 -mr-1")}
         >
-          <ArrowLeft className="size-4" />
+          <ArrowLeft weight="bold" className="size-4" />
         </button>
       )}
       {icon !== undefined && (

@@ -1,5 +1,5 @@
 import { useId, useMemo, useState, type ReactElement, type ReactNode } from "react"
-import { ChevronDown } from "lucide-react"
+import { CaretDown } from "@phosphor-icons/react"
 
 import { fieldTone, type Tone } from "@/components/common/form"
 import {
@@ -160,7 +160,8 @@ export function SelectMenu<T extends string = string>({
             <span id={valueID} className={cn("min-w-0 flex-1 truncate", !active && "text-muted-foreground")}>
               {active?.label ?? placeholder}
             </span>
-            <ChevronDown
+            <CaretDown
+              weight="bold"
               className={cn(
                 "size-3.5 shrink-0 text-muted-foreground transition-[rotate] duration-150",
                 open && "rotate-180",

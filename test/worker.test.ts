@@ -12,7 +12,8 @@ const form = { "content-type": "application/x-www-form-urlencoded" }
 const realFetch = globalThis.fetch
 let sent: Request[]
 let answer: (request: Request) => Response | Promise<Response>
-const issueKey = () => Response.json({ access_token: KEY, token_type: "Bearer" })
+const WORKSPACE = { id: "org_northwind", name: "Northwind Heating" }
+const issueKey = () => Response.json({ access_token: KEY, token_type: "Bearer", workspace: WORKSPACE })
 beforeEach(() => {
   sent = []
   answer = issueKey
@@ -110,7 +111,7 @@ test("the callback trades the code with its verifier, and keeps the key in a coo
   expect(session).toMatch(/; Max-Age=31536000; Path=\/; HttpOnly; Secure; SameSite=Strict$/)
   expect(session).not.toContain(KEY)
   expect([...visitor.cookies.keys()]).toEqual(["__Host-postclerk_session"])
-  expect(await (await visitor.request("/api/session")).json()).toEqual({ signedIn: true })
+  expect(await (await visitor.request("/api/session")).json()).toEqual({ workspace: WORKSPACE.name })
 })
 
 test("a copy on this computer signs in as postclerk.io, with plain cookies", async () => {
@@ -132,7 +133,7 @@ test("a callback this browser didn't start never signs it in", async () => {
   await visitor.request("/oauth/signin", { method: "POST", headers: form })
   answer = () => Response.json({ error: "invalid_grant" }, { status: 400 })
   expect(problem(await visitor.request("/oauth/callback?code=theirs"))).toContain("couldn’t finish signing you in")
-  expect(await (await visitor.request("/api/session")).json()).toEqual({ signedIn: false })
+  expect(await (await visitor.request("/api/session")).json()).toEqual({ workspace: null })
 })
 
 test("a sign-in the person declines, or one Superclerk refuses, leaves the browser signed out and says why", async () => {
@@ -142,7 +143,7 @@ test("a sign-in the person declines, or one Superclerk refuses, leaves the brows
 
   answer = () => Response.json({ error: "invalid_grant" }, { status: 400 })
   const { back } = await signIn(visitor)
-  expect(problem(back)).toBe("Superclerk couldn’t finish signing you in (400). Try again.")
+  expect(problem(back)).toBe("Superclerk couldn’t finish signing you in (invalid_grant). Try again.")
   expect(visitor.cookies.size).toBe(0)
 })
 
@@ -178,9 +179,9 @@ test("when Superclerk no longer knows the key, the sign-in is over", async () =>
 test("a sign-in lasts a year", async () => {
   const { visitor } = await signIn()
   setSystemTime(new Date(Date.now() + 364 * 86_400_000))
-  expect(await (await visitor.request("/api/session")).json()).toEqual({ signedIn: true })
+  expect(await (await visitor.request("/api/session")).json()).toEqual({ workspace: WORKSPACE.name })
   setSystemTime(new Date(Date.now() + 2 * 86_400_000))
-  expect(await (await visitor.request("/api/session")).json()).toEqual({ signedIn: false })
+  expect(await (await visitor.request("/api/session")).json()).toEqual({ workspace: null })
 })
 
 test("an assistant sends the sign-in as a Bearer token to /mcp", async () => {

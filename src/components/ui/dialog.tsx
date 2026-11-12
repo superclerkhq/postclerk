@@ -1,6 +1,6 @@
 import * as React from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
-import { ChevronRight } from "lucide-react"
+import { CaretRight } from "@phosphor-icons/react"
 
 import { PANEL_ACTION_BAR, PANEL_SCRIM, PANEL_SURFACE } from "@/components/ui/styles"
 import { cn } from "@/lib/utils"
@@ -94,7 +94,7 @@ function DialogCrumb({ logo, subject, children }: { logo?: string; subject: stri
         {logo ? <img src={logo} alt="" className="size-4 shrink-0 object-contain" draggable={false} /> : null}
         <span className="truncate">{subject}</span>
       </span>
-      <ChevronRight className="size-3.5 shrink-0 text-muted-foreground/50" aria-hidden />
+      <CaretRight weight="bold" className="size-3.5 shrink-0 text-muted-foreground/50" aria-hidden />
       <span className="shrink-0 text-muted-foreground">{children}</span>
     </DialogPrimitive.Title>
   )

@@ -11,8 +11,8 @@ type Env = {
   /** Encrypts each person's sign-in into their own cookie, so the Worker keeps nothing. */
   SESSION_SECRET: string
 }
-/** A person's sign-in: the Superclerk key it gave, which never reaches a page's scripts. */
-type Session = { key: string }
+/** A person's sign-in: the Superclerk key it gave, which never reaches a page's scripts, and the workspace it acts in. */
+type Session = { key: string; workspace: { id: string; name: string } }
 /** A sign-in waiting for Superclerk to send the browser back: its PKCE verifier. */
 type SignIn = { verifier: string }
 type Types = { Bindings: Env; Variables: { session: Session } }
@@ -26,6 +26,8 @@ const LOOPBACK = ["localhost", "127.0.0.1", "[::1]"]
 // postclerk.io, whose document lists this computer's callback.
 const LOCAL_CLIENT_ID = "https://postclerk.io/oauth/client.json"
 const SESSION_COOKIE = "postclerk_session"
+// What a sealed sign-in is for. It changed when sign-ins began to carry their workspace, so older ones end once.
+const SIGNED_IN = "signed-in"
 const SIGN_IN_COOKIE = "postclerk_signin"
 const SESSION_SECONDS = 365 * 86_400
 // Longer than Superclerk gives a person to approve, so its limit is the one they meet.
@@ -69,7 +71,7 @@ const keep = (c: App, name: string, value: string, maxAge: number, sameSite: "St
 const read = (c: App, name: string) => getCookie(c, name, prefix(c))
 const forget = (c: App, name: string) => deleteCookie(c, name, { prefix: prefix(c) })
 
-const readSession = (c: App) => unseal<Session>(c.env, "session", read(c, SESSION_COOKIE))
+const readSession = (c: App) => unseal<Session>(c.env, SIGNED_IN, read(c, SESSION_COOKIE))
 
 /** Back to the app, saying why when signing in or out went wrong. */
 const home = (c: App, problem?: string) => c.redirect(problem ? `/?problem=${encodeURIComponent(problem)}` : "/", 303)
@@ -179,12 +181,19 @@ app.get("/oauth/callback", async (c) => {
     }),
   })
   if (!answer.ok) {
-    // Whatever Superclerk said goes to the Worker's logs; the person learns that signing in failed, never silently.
+    // An OAuth error names its kind (RFC 6749 §5.2), which says more than the status. All of it goes to the logs.
+    const body = (await answer
+      .clone()
+      .json()
+      .catch(() => ({}))) as { error?: string }
+    const reason = body.error ?? answer.status
     console.error("Superclerk refused the sign-in code", answer.status, await answer.text())
-    return home(c, `Superclerk couldn’t finish signing you in (${answer.status}). Try again.`)
+    return home(c, `Superclerk couldn’t finish signing you in (${reason}). Try again.`)
   }
-  const { access_token: key } = (await answer.json()) as { access_token: string }
-  keep(c, SESSION_COOKIE, await seal(c.env, "session", { key }, SESSION_SECONDS), SESSION_SECONDS, "Strict")
+  const { access_token: key, workspace } = (await answer.json()) as Pick<Session, "workspace"> & {
+    access_token: string
+  }
+  keep(c, SESSION_COOKIE, await seal(c.env, SIGNED_IN, { key, workspace }, SESSION_SECONDS), SESSION_SECONDS, "Strict")
   return home(c)
 })
 
@@ -212,7 +221,7 @@ app.post("/oauth/signout", async (c) => {
  */
 app.all("/mcp", async (c) => {
   const [, token] = /^Bearer (.+)$/i.exec(c.req.header("authorization") ?? "") ?? []
-  const signedIn = await unseal<Session>(c.env, "session", token)
+  const signedIn = await unseal<Session>(c.env, SIGNED_IN, token)
   const answer = signedIn && (await superclerk(c, signedIn, "/v1/mcp"))
   if (answer && answer.status !== 401) return answer
   // An unknown token, or one whose sign-in has ended. Superclerk's own sign-in can't connect an assistant here, so its
@@ -221,7 +230,8 @@ app.all("/mcp", async (c) => {
   return c.json({ jsonrpc: "2.0", id: null, error: { code: -32001, message } }, 401)
 })
 
-app.get("/api/session", async (c) => c.json({ signedIn: (await readSession(c)) !== undefined }))
+// Whether this browser is signed in, and to which workspace.
+app.get("/api/session", async (c) => c.json({ workspace: (await readSession(c))?.workspace.name ?? null }))
 
 // Everything else under /api is for a signed-in person.
 app.use("/api/*", async (c, next) => {

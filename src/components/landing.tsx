@@ -17,7 +17,7 @@ import {
 import type { ReactNode } from "react"
 
 import type { SocialAccount } from "@/api/social"
-import { SocialPlatformLogos } from "@/lib/social"
+import { SocialPlatformLogos } from "@/lib/platform-logos"
 import "./landing.css"
 
 const REPOSITORY = "https://github.com/superclerkhq/postclerk"

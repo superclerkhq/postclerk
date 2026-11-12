@@ -25,16 +25,6 @@ export const SocialPlatformLabels: Record<SocialAccount["platform"], string> = {
   googlebusiness: "Google Business Profile",
 }
 
-export const SocialPlatformLogos: Record<SocialAccount["platform"], string> = {
-  instagram: "/logos/instagram.png",
-  facebook: "/logos/facebook.svg",
-  linkedin: "/logos/linkedin.svg",
-  threads: "/logos/threads.svg",
-  tiktok: "/logos/tiktok.svg",
-  youtube: "/logos/youtube.svg",
-  googlebusiness: "/logos/gbusinessprofile.svg",
-}
-
 export type { TikTokCreatorSettings }
 
 /** The networks this app posts to, by the Superclerk app that connects each one. */

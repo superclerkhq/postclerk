@@ -1,0 +1,35 @@
+name: Live
+
+# Every hour, signs in to postclerk.io as far as anyone can without approving: Superclerk reads the client document,
+# accepts the sign-in, and answers the Worker's code exchange from Cloudflare's network. A failure emails the
+# maintainers. Copies of this repository skip it.
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+jobs:
+  sign-in:
+    if: github.repository == 'superclerkhq/postclerk'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SITE: https://postclerk.io
+    steps:
+      - name: The client document names postclerk.io
+        run: curl -sf "$SITE/oauth/client.json" | grep -q "\"client_id\":\"$SITE/oauth/client.json\""
+      - name: Sign-in reaches Superclerk's approval page, and a code goes back through the Worker
+        run: |
+          set -euo pipefail
+          jar=$(mktemp)
+          authorize=$(curl -s -c "$jar" -o /dev/null -w '%{redirect_url}' -X POST "$SITE/oauth/signin" \
+            -H "origin: $SITE" -H 'sec-fetch-site: same-origin' -H 'content-type: application/x-www-form-urlencoded')
+          approval=$(curl -s -o /dev/null -w '%{redirect_url}' "$authorize")
+          echo "Superclerk sent the browser to: ${approval%%\?*}"
+          [[ "$approval" == https://app.superclerk.com/authorize\?request=* ]]
+          # Superclerk refusing a made-up code as invalid_grant proves the Worker reached its token endpoint.
+          back=$(curl -s -b "$jar" -o /dev/null -w '%{redirect_url}' "$SITE/oauth/callback?code=live-check")
+          echo "The Worker sent the browser back to: $back"
+          [[ "$back" == *invalid_grant* ]]
+      - name: The API needs a sign-in
+        run: test "$(curl -s -o /dev/null -w '%{http_code}' "$SITE/api/v1/social/posts")" = 401

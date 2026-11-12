@@ -1,5 +1,5 @@
 import type { InputHTMLAttributes, ReactNode } from "react"
-import { Check, HelpCircle } from "lucide-react"
+import { Check, Question } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
 import { Switch } from "./switch"
 
@@ -117,7 +117,7 @@ export function Toggle({
             aria-label={hint}
             className="inline-flex shrink-0 text-muted-foreground/70 hover:text-foreground"
           >
-            <HelpCircle className="h-3 w-3" />
+            <Question weight="bold" className="h-3 w-3" />
           </span>
         )}
       </span>
@@ -165,6 +165,7 @@ function CheckRow({
         )}
       >
         <Check
+          weight="bold"
           className={cn(
             "h-2.5 w-2.5 transition-[scale,opacity] duration-150 ease-out",
             active ? "scale-100 opacity-100" : "scale-50 opacity-0",

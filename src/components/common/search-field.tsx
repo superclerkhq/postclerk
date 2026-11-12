@@ -1,4 +1,4 @@
-import { Search } from "lucide-react"
+import { MagnifyingGlass } from "@phosphor-icons/react"
 
 import { fieldTone } from "@/components/common/form"
 import { cn } from "@/lib/utils"
@@ -32,7 +32,10 @@ export function SearchField({
 }) {
   return (
     <div className={cn("relative", className)}>
-      <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/70" />
+      <MagnifyingGlass
+        weight="bold"
+        className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/70"
+      />
       <input
         type="search"
         value={value}
