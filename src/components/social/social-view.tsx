@@ -15,7 +15,7 @@ import { errorMessage } from "@/lib/errors"
 import { Toggle } from "@/components/common/form"
 import { socialTikTokCreatorQuery, socialTikTokPublishingProblem, SocialPlatformLabels } from "@/lib/social"
 import { cn } from "@/lib/utils"
-import { AccountsView, socialAccountsKey } from "./social-accounts"
+import { AccountsView, FirstSteps, socialAccountsKey } from "./social-accounts"
 import { SocialAnalytics } from "./social-analytics"
 import { PlatformLogo } from "./social-logo"
 import { Composer, localWhen, scheduledInstant, WhenFields, type When } from "./social-composer"
@@ -51,6 +51,9 @@ export function SocialView({ view, accountId }: { view: WorkspaceView; accountId
   const [month, setMonth] = useState(() => new Date())
   const [editor, setEditor] = useState<Editor>(null)
   const accounts = useQuery({ queryKey: socialAccountsKey, queryFn: () => superclerk.social.accounts.list() })
+  // With nowhere to post there is nothing to list or schedule, so every page opens on connecting an account.
+  const nowhere =
+    accounts.data !== undefined && accounts.data.accounts.every((account) => account.status === "disabled")
   const accountsLoading =
     accounts.data === undefined && accounts.error === null ? <LoadingState message="Loading accounts…" /> : null
   const filter =
@@ -70,7 +73,7 @@ export function SocialView({ view, accountId }: { view: WorkspaceView; accountId
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) => superclerk.social.posts.list({ ...filters, cursor: pageParam }),
     getNextPageParam: (last) => (last.nextCursor === null ? undefined : last.nextCursor),
-    enabled: listed || feedAccount !== undefined,
+    enabled: !nowhere && (listed || feedAccount !== undefined),
     refetchInterval: 15_000,
   })
   const range = { ...monthRange(month), accountId }
@@ -82,7 +85,7 @@ export function SocialView({ view, accountId }: { view: WorkspaceView; accountId
         items.push(post)
       return items
     },
-    enabled: view === "calendar",
+    enabled: !nowhere && view === "calendar",
     refetchInterval: 15_000,
   })
   const selectedId = editor?.kind === "detail" || editor?.kind === "edit" ? editor.id : null
@@ -104,6 +107,7 @@ export function SocialView({ view, accountId }: { view: WorkspaceView; accountId
     setEditor({ kind: "detail", id: post.id })
   }
   const loaded = posts.data?.pages.flatMap((page) => page.items)
+  if (nowhere) return <FirstSteps accounts={accounts.data.accounts} />
   return (
     <>
       <PageHeader

@@ -128,7 +128,7 @@ function Setup({ token, tools }: Assistants) {
 }
 
 /** An assistant's mark on the white tile platform logos sit on, so the row of them reads as one set. */
-function ClientLogo({ src, children }: { src?: string; children?: ReactNode }) {
+export function ClientLogo({ src, children }: { src?: string; children?: ReactNode }) {
   return (
     <span
       aria-hidden

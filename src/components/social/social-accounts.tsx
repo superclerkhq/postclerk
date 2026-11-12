@@ -1,15 +1,15 @@
 import { useState, type ReactNode } from "react"
-import { useSearch } from "@tanstack/react-router"
+import { Link, useSearch } from "@tanstack/react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { CircleNotch, Plus, PlugsConnected } from "@phosphor-icons/react"
+import { CircleNotch } from "@phosphor-icons/react"
 import { superclerk } from "@/api/client"
 import type { SocialAccount } from "@/api/social"
-import { Button } from "@/components/common/button"
-import { EmptyState, ErrorState, LoadingState } from "@/components/common/empty-state"
+import { Button, buttonClass } from "@/components/common/button"
+import { ErrorState, LoadingState } from "@/components/common/empty-state"
 import { ConfirmDialog, FormError } from "@/components/common/form-dialog"
+import { PageBody, PageHeader } from "@/components/common/page"
 import { PANEL } from "@/components/common/section"
 import { Switch } from "@/components/common/switch"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { errorMessage } from "@/lib/errors"
 import {
   connectionAccounts,
@@ -19,6 +19,7 @@ import {
   type SocialConnection,
 } from "@/lib/social"
 import { cn } from "@/lib/utils"
+import { ClientLogo } from "./social-assistants"
 import { PlatformLogo } from "./social-logo"
 
 export const socialAccountsKey = ["social", "accounts"] as const
@@ -51,26 +52,32 @@ function Reconnect({ connectionID }: { connectionID: string | null }) {
   )
 }
 
-/** The networks to connect, each opening its own sign-in. */
-function ConnectMenu({ children }: { children: ReactNode }) {
+/** Every network this app posts to, one click from its own sign-in. */
+function ConnectNetworks() {
   const connect = useConnect()
+  const starting =
+    connect.isPending && connect.variables !== undefined && "appID" in connect.variables
+      ? connect.variables.appID
+      : null
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-60">
-          {SocialNetworks.map((network) => (
-            <DropdownMenuItem
-              key={network.appID}
-              disabled={connect.isPending}
-              onSelect={() => connect.mutate({ appID: network.appID })}
-            >
-              <PlatformLogo platform={network.platform} size={16} />
-              {network.label}
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <div role="group" aria-label="Connect a platform" className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+        {SocialNetworks.map((network) => (
+          <button
+            key={network.appID}
+            type="button"
+            disabled={connect.isPending}
+            onClick={() => connect.mutate({ appID: network.appID })}
+            className="flex min-w-0 cursor-pointer items-center gap-2.5 rounded-xl bg-surface-soft px-3 py-2.5 text-left transition-colors hover:bg-surface-medium focus-visible:outline-2 focus-visible:outline-ring disabled:cursor-not-allowed"
+          >
+            <PlatformLogo platform={network.platform} size={24} />
+            <span className="min-w-0 flex-1 text-[13px] font-medium leading-tight text-foreground">{network.label}</span>
+            {starting === network.appID && (
+              <CircleNotch size={14} className="shrink-0 animate-spin text-muted-foreground" />
+            )}
+          </button>
+        ))}
+      </div>
       {connect.error && <FormError>{errorMessage(connect.error, "Could not start connecting")}</FormError>}
     </>
   )
@@ -275,54 +282,80 @@ export function AccountsView({ accounts }: { accounts: SocialAccount[] }) {
   const owns = (connection: SocialConnection, account: SocialAccount) =>
     account.platform === connection.platform && account.connectionID === connection.id
   const orphaned = saved.filter((account) => !linked.some((connection) => owns(connection, account)))
-  if (linked.length === 0 && orphaned.length === 0)
-    return (
-      <EmptyState
-        className="max-w-3xl rounded-2xl bg-surface-soft py-12"
-        icon={<PlugsConnected size={24} weight="duotone" />}
-        title="Connect a platform to start posting"
-        description="Connect Instagram, Facebook, LinkedIn and others. Their accounts show up here."
-        action={
-          <ConnectMenu>
-            <Button size="sm">Connect a platform</Button>
-          </ConnectMenu>
-        }
-      />
-    )
+  const listed = linked.length > 0 || orphaned.length > 0
   return (
     <div className="min-w-0 max-w-3xl space-y-3">
       {failed !== undefined && <FormError>That account didn’t connect ({failed}). Try again.</FormError>}
-      <div className={cn(PANEL, "divide-y divide-border/50")}>
-        {linked.map((connection) => (
-          <ConnectionAccounts
-            key={connection.id}
-            connection={connection}
-            saved={saved.filter((account) => owns(connection, account))}
-            named={linked.filter((item) => item.platform === connection.platform).length > 1}
-          />
-        ))}
-        {orphaned.map((account) => (
-          <AccountRow
-            key={account.id}
-            platform={account.platform}
-            label={account.label}
-            where={
-              <>
-                {SocialPlatformLabels[account.platform]} · <span className="text-destructive">Disconnected</span> ·{" "}
-                <Reconnect connectionID={account.connectionID} />
-              </>
-            }
-            account={account}
-            add={null}
-          />
-        ))}
-      </div>
-      <ConnectMenu>
-        <Button variant="ghost" size="sm" className="-ml-2">
-          <Plus size={12} weight="bold" />
-          Connect another platform
-        </Button>
-      </ConnectMenu>
+      {listed && (
+        <div className={cn(PANEL, "divide-y divide-border/50")}>
+          {linked.map((connection) => (
+            <ConnectionAccounts
+              key={connection.id}
+              connection={connection}
+              saved={saved.filter((account) => owns(connection, account))}
+              named={linked.filter((item) => item.platform === connection.platform).length > 1}
+            />
+          ))}
+          {orphaned.map((account) => (
+            <AccountRow
+              key={account.id}
+              platform={account.platform}
+              label={account.label}
+              where={
+                <>
+                  {SocialPlatformLabels[account.platform]} · <span className="text-destructive">Disconnected</span> ·{" "}
+                  <Reconnect connectionID={account.connectionID} />
+                </>
+              }
+              account={account}
+              add={null}
+            />
+          ))}
+        </div>
+      )}
+      {listed && <h2 className="px-1 pt-5 text-xs font-medium text-muted-foreground">Connect another platform</h2>}
+      <ConnectNetworks />
     </div>
+  )
+}
+
+/**
+ * Where a workspace with nowhere to post opens, whichever page it asked for: the networks to connect, the accounts its
+ * connections already offer, and the AI assistants that can post here too.
+ */
+export function FirstSteps({ accounts }: { accounts: SocialAccount[] }) {
+  return (
+    <>
+      <PageHeader
+        title="Connect where you post"
+        description="Pick a network and sign in to it. Postclerk posts to the accounts you switch on."
+      />
+      <PageBody>
+        <AccountsView accounts={accounts} />
+        <section
+          aria-label="AI assistants"
+          className="mt-10 flex max-w-3xl flex-col gap-3 rounded-2xl bg-surface-soft p-4 sm:flex-row sm:items-center sm:gap-4"
+        >
+          <div className="flex shrink-0 gap-1.5">
+            <ClientLogo src="/logos/claudecode.svg" />
+            <ClientLogo src="/logos/codex.svg" />
+            <ClientLogo src="/logos/cursor.svg" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] font-medium text-foreground">Work from your AI assistant</p>
+            <p className="text-xs text-muted-foreground">
+              Claude Code, Codex, Cursor and others can write and schedule posts here, through Postclerk’s MCP server.
+            </p>
+          </div>
+          <Link
+            to="/"
+            search={{ view: "assistants" }}
+            className={cn(buttonClass("secondary", "sm"), "self-start sm:self-auto")}
+          >
+            Set up an assistant
+          </Link>
+        </section>
+      </PageBody>
+    </>
   )
 }
