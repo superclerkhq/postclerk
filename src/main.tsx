@@ -11,7 +11,7 @@ import "@fontsource/jetbrains-mono/latin-400.css"
 import "@fontsource/outfit/latin-600.css"
 
 import { ShelfPages } from "@/components/shelf-link"
-import { SignInScreen } from "@/components/sign-in-screen"
+import { Landing } from "@/components/landing"
 import { AssistantsView } from "@/components/social/social-assistants"
 import { SOCIAL_VIEWS, socialPages, SocialMobileNav, type SocialViewName } from "@/components/social/social-menu"
 import { SocialView } from "@/components/social/social-view"
@@ -33,12 +33,12 @@ viewport.addEventListener("scroll", followViewport)
 type NamedView = Exclude<SocialViewName, "queue">
 const NAMED_VIEWS = new Set<string>(SOCIAL_VIEWS.filter((view) => view !== "queue"))
 
-/** The app once this browser is signed in to Superclerk, and the sign-in screen before. */
+/** The app once this browser is signed in to Superclerk, and the landing page before. */
 function Home() {
   const session = useQuery(sessionQuery)
   const { problem } = useSearch({ from: "/" })
   if (!session.data) return null
-  return session.data.signedIn ? <Workspace /> : <SignInScreen problem={problem} />
+  return session.data.signedIn ? <Workspace /> : <Landing problem={problem} />
 }
 
 function Workspace() {
