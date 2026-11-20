@@ -15,11 +15,11 @@ const DEFAULTS: Record<SocialAccount["platform"], (media: Media, caption: string
     privacyStatus: "public",
     notifySubscribers: true,
   }),
-  facebook: none,
-  linkedin: none,
+  facebook: () => ({ format: "post" }),
+  linkedin: () => ({ format: "post" }),
+  googlebusiness: () => ({ topicType: "STANDARD", languageCode: globalThis.navigator?.language ?? "en" }),
   threads: none,
   tiktok: none,
-  googlebusiness: none,
 }
 
 /**

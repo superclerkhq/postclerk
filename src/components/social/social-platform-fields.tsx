@@ -371,7 +371,7 @@ export function PlatformFields({ account, options: chosen, defaults, onChange, m
         </div>
       )
     case "googlebusiness":
-      return <GoogleBusinessFields options={chosen} onChange={onChange} />
+      return <GoogleBusinessFields options={options} onChange={onChange} />
     case "tiktok":
       return <TikTokFields account={account} options={chosen} onChange={onChange} mediaItems={mediaItems} />
   }

@@ -31,8 +31,11 @@ test("YouTube starts from the caption's first line and leaves every declaration 
   expect(defaultOptions("youtube", [video], "🔥".repeat(120)).title).toBe("🔥".repeat(100))
 })
 
-test("the other networks start with nothing chosen for the person", () => {
-  for (const platform of ["facebook", "linkedin", "threads", "tiktok", "googlebusiness"] as const)
+test("every network starts from an ordinary choice, never a declaration made for the person", () => {
+  expect(defaultOptions("facebook", [video], "A caption")).toEqual({ format: "post" })
+  expect(defaultOptions("linkedin", [video], "A caption")).toEqual({ format: "post" })
+  expect(defaultOptions("googlebusiness", [], "A caption")).toEqual({ topicType: "STANDARD", languageCode: "en" })
+  for (const platform of ["threads", "tiktok"] as const)
     expect(defaultOptions(platform, [video], "A caption")).toEqual({})
 })
 
