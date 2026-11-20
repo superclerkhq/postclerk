@@ -126,51 +126,6 @@ export type SocialDestinationDraft = {
 }
 export type SocialDraft = { content: string; mediaItems: SocialMediaItem[]; destinations: SocialDestinationDraft[] }
 
-export function setSocialPlatformOption(
-  platform: SocialAccount["platform"],
-  options: Record<string, unknown>,
-  name: string,
-  value: unknown,
-) {
-  if (platform === "tiktok" && name === "format" && (value === "inbox" || options.format === "inbox"))
-    return { format: value }
-  const next = { ...options }
-  if (value === undefined) delete next[name]
-  else next[name] = value
-  if (name === "format") {
-    if (platform === "facebook" && value !== "post") {
-      delete next.linkUrl
-      delete next.title
-    }
-    if (platform === "linkedin") {
-      delete next.sourceUrl
-      delete next.title
-      delete next.description
-    }
-    if (platform === "tiktok") {
-      for (const field of value === "video"
-        ? ["photoCoverIndex", "autoAddMusic", "title"]
-        : ["allowDuet", "allowStitch"])
-        delete next[field]
-    }
-  }
-  if (platform === "googlebusiness" && name === "topicType") {
-    if (value === "STANDARD") delete next.event
-    if (value !== "OFFER") delete next.offer
-    if (value === "OFFER") delete next.callToAction
-  }
-  if (platform === "tiktok" && name === "commercialContentDisclosure") {
-    for (const field of ["promotesOwnBrand", "promotesThirdParty", "brandedContentPolicyConfirmation"]) {
-      next[field] = false
-    }
-  }
-  if (platform === "tiktok" && name === "promotesThirdParty") {
-    if (value === false) next.brandedContentPolicyConfirmation = false
-    else delete next.brandedContentPolicyConfirmation
-  }
-  return next
-}
-
 export function socialDraft(post?: SocialPost): SocialDraft {
   if (post === undefined) return { content: "", mediaItems: [], destinations: [] }
   return {

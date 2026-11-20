@@ -6,12 +6,8 @@ import { Button } from "@/components/common/button"
 import { Checkbox } from "@/components/common/checkbox"
 import { Field, TextInput, Toggle } from "@/components/common/form"
 import { SelectMenu, type SelectMenuItem } from "@/components/common/select-menu"
-import {
-  setSocialPlatformOption,
-  socialTikTokCreatorQuery,
-  TikTokSavedChoices,
-  type TikTokCreatorSettings,
-} from "@/lib/social"
+import { socialTikTokCreatorQuery, TikTokSavedChoices, type TikTokCreatorSettings } from "@/lib/social"
+import { setSocialPlatformOption } from "@/lib/social-options"
 
 const TIKTOK_PRIVACY_LABELS: Record<TikTokCreatorSettings["privacyLevelOptions"][number], string> = {
   PUBLIC_TO_EVERYONE: "Everyone",
@@ -122,7 +118,10 @@ export function TikTokDeclaration({ branded }: { branded: boolean }) {
 
 type Props = {
   account: SocialAccount
+  /** The person's own choices. A change applies to these alone, so a default is never stored as a choice. */
   options: Record<string, unknown>
+  /** What each option the person hasn't chosen shows and publishes as. */
+  defaults: Record<string, unknown>
   onChange: (next: Record<string, unknown>) => void
   mediaItems: readonly SocialMediaItem[]
   /** Whether the media this account gets includes a video, which some platform choices only apply to. */
@@ -191,9 +190,9 @@ function BooleanChoice({
   )
 }
 
-export function PlatformFields({ account, options, onChange, mediaItems, video }: Props) {
-  const set = (name: string, value: unknown) =>
-    onChange(setSocialPlatformOption(account.platform, options, name, value))
+export function PlatformFields({ account, options: chosen, defaults, onChange, mediaItems, video }: Props) {
+  const options = { ...defaults, ...chosen }
+  const set = (name: string, value: unknown) => onChange(setSocialPlatformOption(account.platform, chosen, name, value))
   const text = (name: string) => (typeof options[name] === "string" ? (options[name] as string) : "")
   switch (account.platform) {
     case "threads":
@@ -302,15 +301,22 @@ export function PlatformFields({ account, options, onChange, mediaItems, video }
     case "youtube":
       return (
         <div className="grid gap-4">
-          <Field label="Video title" hint="Up to 100 characters. Angle brackets are not allowed.">
-            <TextInput value={text("title")} onChange={(event) => set("title", event.target.value || undefined)} />
+          {/* A cleared field keeps "", so its default doesn't come back while the person types. */}
+          <Field
+            label="Video title"
+            hint="Starts as the caption’s first line. Up to 100 characters, no angle brackets."
+          >
+            <TextInput value={text("title")} onChange={(event) => set("title", event.target.value)} />
           </Field>
-          <Field label="YouTube category ID" hint="The numeric ID of your chosen YouTube video category.">
+          <Field
+            label="YouTube category ID"
+            hint="The numeric ID of your YouTube video category. 22 is People & Blogs."
+          >
             <TextInput
               inputMode="numeric"
               pattern="[1-9][0-9]*"
               value={text("categoryId")}
-              onChange={(event) => set("categoryId", event.target.value || undefined)}
+              onChange={(event) => set("categoryId", event.target.value)}
             />
           </Field>
           <Choice
@@ -365,9 +371,9 @@ export function PlatformFields({ account, options, onChange, mediaItems, video }
         </div>
       )
     case "googlebusiness":
-      return <GoogleBusinessFields options={options} onChange={onChange} />
+      return <GoogleBusinessFields options={chosen} onChange={onChange} />
     case "tiktok":
-      return <TikTokFields account={account} options={options} onChange={onChange} mediaItems={mediaItems} />
+      return <TikTokFields account={account} options={chosen} onChange={onChange} mediaItems={mediaItems} />
   }
 }
 
@@ -411,7 +417,7 @@ export function TikTokInboxNotice() {
   )
 }
 
-function TikTokFields({ account, options, onChange, mediaItems }: Omit<Props, "video">) {
+function TikTokFields({ account, options, onChange, mediaItems }: Omit<Props, "video" | "defaults">) {
   const creator = useQuery(socialTikTokCreatorQuery(account))
   const set = (name: string, value: unknown) => onChange(setSocialPlatformOption("tiktok", options, name, value))
   return (

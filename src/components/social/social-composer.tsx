@@ -22,6 +22,7 @@ import {
   type SocialDraft,
   type TikTokCreatorSettings,
 } from "@/lib/social"
+import { defaultOptions, fieldProblems } from "@/lib/social-options"
 import { cn } from "@/lib/utils"
 import { PlatformLogo } from "./social-logo"
 import { assetKey, MediaTray, type StagedUpload } from "./social-media"
@@ -236,6 +237,20 @@ function VersionToggle({ label, pressed, onClick }: { label: string; pressed: bo
   )
 }
 
+/** The fields the API refused, each beside the logo of the account it belongs to. */
+function FieldErrors({ problems }: { problems: ReturnType<typeof fieldProblems> }) {
+  return (
+    <ul role="alert" className="space-y-1 text-xs leading-5 text-destructive">
+      {problems.map(({ account, text }, index) => (
+        <li key={index} className="flex items-start gap-1.5">
+          {account && <PlatformLogo platform={account.platform} size={14} className="mt-[3px]" />}
+          {text}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 /**
  * Writing a post: the accounts it goes to, its media and caption, any account's own version, and when it
  * publishes. A save waits for every added file, so a photo is never left out of a post unnoticed.
@@ -283,20 +298,26 @@ export function Composer({
       ].map((item) => item.assetId),
     ),
   ]
-  const videos = new Set(
+  const assets = new Map(
     useQueries({
       queries: attachedIds.map((id) => ({
         queryKey: assetKey(id),
         queryFn: () => superclerk.social.media.get(id),
         initialData: initialAssets.find((asset) => asset.id === id),
       })),
-    }).flatMap((asset) => (asset.data?.contentType === "video/mp4" ? [asset.data.id] : [])),
+    }).flatMap((asset) => (asset.data === undefined ? [] : [[asset.data.id, asset.data] as const])),
   )
   const accountFor = (accountId: string) => {
     const account = accounts.find((item) => item.id === accountId)
     if (account === undefined) throw new Error("A selected account is no longer listed")
     return account
   }
+  const defaultsFor = (destination: SocialDestinationDraft) =>
+    defaultOptions(
+      accountFor(destination.accountId).platform,
+      (destination.mediaItems ?? draft.mediaItems).flatMap((item) => assets.get(item.assetId) ?? []),
+      destination.customContent ?? draft.content,
+    )
   const tiktokDestinations = draft.destinations.filter(
     (destination) => accountFor(destination.accountId).platform === "tiktok",
   )
@@ -397,7 +418,11 @@ export function Composer({
         const creator = cache.getQueryData(key)
         if (creator !== undefined) creators.set(account.id, creator)
       }
-      const content = socialContent(draft, accounts, creators)
+      const destinations = draft.destinations.map((item) => ({
+        ...item,
+        options: { ...defaultsFor(item), ...item.options },
+      }))
+      const content = socialContent({ ...draft, destinations }, accounts, creators)
       if (post !== undefined) {
         const body = { ...content, expectedRevision: post.revision }
         return superclerk.social.posts.update(
@@ -475,7 +500,16 @@ export function Composer({
           )}
           {save.error ? (
             <div className="flex basis-full flex-wrap items-center gap-x-3 gap-y-1">
-              <FormError>{errorMessage(save.error, "The post could not be saved")}</FormError>
+              {save.error instanceof ApiError && save.error.fields !== undefined ? (
+                <FieldErrors
+                  problems={fieldProblems(
+                    save.error.fields,
+                    draft.destinations.map((destination) => accountFor(destination.accountId)),
+                  )}
+                />
+              ) : (
+                <FormError>{errorMessage(save.error, "The post could not be saved")}</FormError>
+              )}
               {post !== undefined && save.error instanceof ApiError && save.error.status === 409 && (
                 <Button
                   type="button"
@@ -712,8 +746,9 @@ export function Composer({
                         <PlatformFields
                           account={account}
                           options={destination.options}
+                          defaults={defaultsFor(destination)}
                           mediaItems={media}
-                          video={media.some((item) => videos.has(item.assetId))}
+                          video={media.some((item) => assets.get(item.assetId)?.contentType === "video/mp4")}
                           onChange={(options) => editDestination(account.id, () => ({ options }))}
                         />
                       </div>
