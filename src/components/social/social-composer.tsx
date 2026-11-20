@@ -237,14 +237,18 @@ function VersionToggle({ label, pressed, onClick }: { label: string; pressed: bo
   )
 }
 
-/** The fields the API refused, each beside the logo of the account it belongs to. */
-function FieldErrors({ problems }: { problems: ReturnType<typeof fieldProblems> }) {
+// A field the API refused shows against its account, with the network's logo; any other failure shows as it came.
+function SaveError({ error, accounts }: { error: Error; accounts: readonly SocialAccount[] }) {
+  const problems = error instanceof ApiError ? fieldProblems(error.fields ?? [], accounts) : []
+  if (problems.length === 0) return <FormError>{errorMessage(error, "The post could not be saved")}</FormError>
   return (
     <ul role="alert" className="space-y-1 text-xs leading-5 text-destructive">
-      {problems.map(({ account, text }, index) => (
-        <li key={index} className="flex items-start gap-1.5">
-          {account && <PlatformLogo platform={account.platform} size={14} className="mt-[3px]" />}
-          {text}
+      {problems.map(({ account, problem }, index) => (
+        <li key={index} className="flex items-center gap-1.5">
+          <PlatformLogo platform={account.platform} size={14} />
+          <span>
+            {account.label}: {problem}
+          </span>
         </li>
       ))}
     </ul>
@@ -500,16 +504,10 @@ export function Composer({
           )}
           {save.error ? (
             <div className="flex basis-full flex-wrap items-center gap-x-3 gap-y-1">
-              {save.error instanceof ApiError && save.error.fields !== undefined ? (
-                <FieldErrors
-                  problems={fieldProblems(
-                    save.error.fields,
-                    draft.destinations.map((destination) => accountFor(destination.accountId)),
-                  )}
-                />
-              ) : (
-                <FormError>{errorMessage(save.error, "The post could not be saved")}</FormError>
-              )}
+              <SaveError
+                error={save.error}
+                accounts={draft.destinations.map((destination) => accountFor(destination.accountId))}
+              />
               {post !== undefined && save.error instanceof ApiError && save.error.status === 409 && (
                 <Button
                   type="button"

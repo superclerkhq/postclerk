@@ -6,7 +6,7 @@ type Media = readonly Pick<SocialAsset, "contentType">[]
 
 const none = () => ({})
 
-// What each network's settings start as. YouTube's Community Guidelines confirmation stays the person's to give.
+// What each network's settings start as. YouTube's declarations stay the person's to make, as TikTok's are.
 const DEFAULTS: Record<SocialAccount["platform"], (media: Media, caption: string) => Record<string, unknown>> = {
   instagram: (media) => ({ format: media.length === 1 && media[0].contentType === "video/mp4" ? "reel" : "post" }),
   youtube: (_media, caption) => ({
@@ -14,9 +14,6 @@ const DEFAULTS: Record<SocialAccount["platform"], (media: Media, caption: string
     categoryId: "22",
     privacyStatus: "public",
     notifySubscribers: true,
-    selfDeclaredMadeForKids: false,
-    containsSyntheticMedia: false,
-    hasPaidProductPlacement: false,
   }),
   facebook: none,
   linkedin: none,
@@ -78,33 +75,27 @@ export function setSocialPlatformOption(
   return next
 }
 
-// The words a refused field goes by; any other field shows by its own name.
-const FIELD_LABELS: Partial<Record<string, string>> = {
-  content: "Caption",
-  customContent: "Caption",
-  mediaItems: "Media",
-  altText: "Alt text",
-  format: "Format",
-  title: "Title",
-  categoryId: "Category ID",
-  privacyStatus: "Visibility",
-  notifySubscribers: "Notify subscribers",
-  selfDeclaredMadeForKids: "Made for kids",
-  containsSyntheticMedia: "Altered or synthetic content",
-  hasPaidProductPlacement: "Paid product placement",
-  communityGuidelinesCertified: "Community guidelines",
-  scheduledFor: "Publish time",
+// What a refused field asks of the person, in Superclerk's own words; any other field shows the API's message.
+const FIELD_PROBLEMS: Partial<Record<string, string>> = {
+  format: "Choose a format",
+  title: "Add a title",
+  categoryId: "Choose a category",
+  privacyStatus: "Choose who can watch",
+  selfDeclaredMadeForKids: "Answer whether it’s made for kids",
+  containsSyntheticMedia: "Answer whether it has altered or synthetic content",
+  hasPaidProductPlacement: "Answer whether it has paid promotion",
+  communityGuidelinesCertified: "Confirm the video follows YouTube’s Community Guidelines",
 }
 
 /**
- * Each field the API refused, in words, with the account it belongs to: a path's `platforms.N` is the post's Nth
- * destination, and `accounts` lists them in the order the post sent them.
+ * Each field the API refused in one of the post's destinations, with the account it belongs to: a path's
+ * `platforms.N` is the Nth destination, and `accounts` lists them in the order the post sent them.
  */
 export function fieldProblems(fields: readonly FieldError[], accounts: readonly SocialAccount[]) {
-  return fields.map(({ path, message }) => {
-    const account: SocialAccount | undefined = path[0] === "platforms" ? accounts[Number(path[1])] : undefined
-    const name = (account === undefined ? path : path.slice(2)).filter((part) => !/^\d+$/.test(part)).at(-1)
-    const subject = [account?.label, name && (FIELD_LABELS[name] ?? name)].filter(Boolean).join(" · ")
-    return { account, text: subject === "" ? message : `${subject}: ${message}` }
-  })
+  return fields
+    .filter(({ path }) => path[0] === "platforms")
+    .map(({ path, message }) => ({
+      account: accounts[Number(path[1])],
+      problem: FIELD_PROBLEMS[path.at(-1)!] ?? message,
+    }))
 }

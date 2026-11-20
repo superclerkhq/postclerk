@@ -21,15 +21,12 @@ test("Instagram starts a single video as a Reel and anything else as a feed post
   expect(defaultOptions("instagram", [], "")).toEqual({ format: "post" })
 })
 
-test("YouTube starts from the caption's first line and leaves the guidelines for the person", () => {
+test("YouTube starts from the caption's first line and leaves every declaration for the person", () => {
   expect(defaultOptions("youtube", [video], "  Our <new> kitchen tour  \nFilmed in Leeds.")).toEqual({
     title: "Our new kitchen tour",
     categoryId: "22",
     privacyStatus: "public",
     notifySubscribers: true,
-    selfDeclaredMadeForKids: false,
-    containsSyntheticMedia: false,
-    hasPaidProductPlacement: false,
   })
   expect(defaultOptions("youtube", [video], "🔥".repeat(120)).title).toBe("🔥".repeat(100))
 })
@@ -47,43 +44,48 @@ test("an Instagram format the person didn't choose follows the media, even after
   expect({ ...defaultOptions("instagram", [photo, photo], ""), ...chosen }.format).toBe("story")
 })
 
-test("a refused post names each field beside the account it belongs to", () => {
+const refused = (index: number, name: string) => ({
+  path: ["platforms", String(index), "platformSpecificData", name],
+  message: "Value is not one of the allowed values.",
+})
+
+test("a refused post asks for each field against the account it belongs to", () => {
   const instagram = account("instagram", "@northwind")
   const youtube = account("youtube", "Northwind Heating")
-  // One MP4 to Instagram and YouTube with the options untouched, as the API names the fields it refuses.
+  // One MP4 to Instagram and YouTube with nothing chosen, as production sent it and the API names what it refuses.
   const problems = fieldProblems(
     [
-      {
-        path: ["platforms", "0", "platformSpecificData", "format"],
-        message: "Value is not one of the allowed values.",
-      },
-      {
-        path: ["platforms", "1", "platformSpecificData", "communityGuidelinesCertified"],
-        message: "Value is not one of the allowed values.",
-      },
-      { path: ["platforms", "1", "mediaItems", "0", "altText"], message: "Unknown field." },
+      refused(0, "format"),
+      refused(1, "title"),
+      refused(1, "categoryId"),
+      refused(1, "privacyStatus"),
+      refused(1, "selfDeclaredMadeForKids"),
+      refused(1, "containsSyntheticMedia"),
+      refused(1, "hasPaidProductPlacement"),
+      refused(1, "communityGuidelinesCertified"),
     ],
     [instagram, youtube],
   )
   expect(problems).toEqual([
-    { account: instagram, text: "@northwind · Format: Value is not one of the allowed values." },
-    { account: youtube, text: "Northwind Heating · Community guidelines: Value is not one of the allowed values." },
-    { account: youtube, text: "Northwind Heating · Alt text: Unknown field." },
+    { account: instagram, problem: "Choose a format" },
+    { account: youtube, problem: "Add a title" },
+    { account: youtube, problem: "Choose a category" },
+    { account: youtube, problem: "Choose who can watch" },
+    { account: youtube, problem: "Answer whether it’s made for kids" },
+    { account: youtube, problem: "Answer whether it has altered or synthetic content" },
+    { account: youtube, problem: "Answer whether it has paid promotion" },
+    { account: youtube, problem: "Confirm the video follows YouTube’s Community Guidelines" },
   ])
 })
 
-test("a refused field outside the accounts keeps its own name, and an unlabelled one its raw name", () => {
+test("any other field in a destination shows the API's own message, and a field outside them none", () => {
+  const instagram = account("instagram", "@northwind")
   const problems = fieldProblems(
     [
+      { path: ["platforms", "0", "mediaItems", "0", "altText"], message: "Unknown field." },
       { path: ["content"], message: "Value does not satisfy the maximum constraint 63206." },
-      { path: ["platforms", "0", "platformSpecificData", "trialGraduation"], message: "Unknown field." },
-      { path: [], message: "Value does not satisfy the request schema." },
     ],
-    [account("instagram", "@northwind")],
+    [instagram],
   )
-  expect(problems.map((problem) => problem.text)).toEqual([
-    "Caption: Value does not satisfy the maximum constraint 63206.",
-    "@northwind · trialGraduation: Unknown field.",
-    "Value does not satisfy the request schema.",
-  ])
+  expect(problems).toEqual([{ account: instagram, problem: "Unknown field." }])
 })
