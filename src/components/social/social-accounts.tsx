@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { CircleNotch } from "@phosphor-icons/react"
 import { superclerk } from "@/api/client"
 import type { SocialAccount } from "@/api/social"
-import { Button, buttonClass } from "@/components/common/button"
+import { Button, BusyButton, buttonClass } from "@/components/common/button"
 import { ErrorState, LoadingState } from "@/components/common/empty-state"
 import { ConfirmDialog, FormError } from "@/components/common/form-dialog"
 import { PageBody, PageHeader } from "@/components/common/page"
@@ -81,6 +81,24 @@ function ConnectNetworks() {
       {connect.error && <FormError>{errorMessage(connect.error, "Could not start connecting")}</FormError>}
     </>
   )
+}
+
+// A network that shares only what the person ticks in its own window says where to tick it.
+const SHARE_HELP: Partial<Record<SocialAccount["platform"], ReactNode>> = {
+  facebook: (
+    <>
+      Reconnect, click “Edit access” in Facebook’s window and tick your Page, or{" "}
+      <a
+        href="https://www.facebook.com/settings/?tab=business_tools"
+        target="_blank"
+        rel="noreferrer"
+        className="font-medium text-brand hover:underline"
+      >
+        choose its Pages in Facebook’s settings
+      </a>
+      .
+    </>
+  ),
 }
 
 /** Where an account sits, and whether its connection still lets posts through. */
@@ -198,6 +216,7 @@ function ConnectionAccounts({
     refetchOnWindowFocus: false,
     retry: false,
   })
+  const reconnect = useConnect()
   const platform = SocialPlatformLabels[connection.platform]
   const where = named ? `${platform} · ${connection.label}` : platform
   const candidates = offered.data
@@ -254,7 +273,19 @@ function ConnectionAccounts({
       )}
       {candidates?.length === 0 && saved.length === 0 && (
         <Row platform={connection.platform}>
-          <p className="min-w-0 flex-1 text-xs text-muted-foreground">{where} has no accounts you can post to yet.</p>
+          <div className="min-w-0 flex-1 text-xs text-muted-foreground">
+            {where} didn’t share an account with Postclerk. {SHARE_HELP[connection.platform]}
+            {reconnect.error && <FormError>{errorMessage(reconnect.error, "Could not start reconnecting")}</FormError>}
+          </div>
+          <BusyButton
+            type="button"
+            variant="secondary"
+            size="sm"
+            pending={reconnect.isPending}
+            onClick={() => reconnect.mutate({ connectionID: connection.id })}
+          >
+            Reconnect
+          </BusyButton>
         </Row>
       )}
     </>
