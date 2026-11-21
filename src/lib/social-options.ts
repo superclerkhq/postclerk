@@ -88,14 +88,16 @@ const FIELD_PROBLEMS: Partial<Record<string, string>> = {
 }
 
 /**
- * Each field the API refused in one of the post's destinations, with the account it belongs to: a path's
- * `platforms.N` is the Nth destination, and `accounts` lists them in the order the post sent them.
+ * Every field the API refused. A destination's (`platforms.N`, the Nth account in the order the post sent them) comes
+ * with its account; any other, such as the caption or the list of accounts, with its path. A field left unchosen, which
+ * the API words as an expected type or an allowed value, gets its sentence; a value that breaks a rule, such as a
+ * title too long, keeps the API's own words.
  */
 export function fieldProblems(fields: readonly FieldError[], accounts: readonly SocialAccount[]) {
-  return fields
-    .filter(({ path }) => path[0] === "platforms")
-    .map(({ path, message }) => ({
-      account: accounts[Number(path[1])],
-      problem: FIELD_PROBLEMS[path.at(-1)!] ?? message,
-    }))
+  return fields.map(({ path, message }) => {
+    const account = path[0] === "platforms" ? accounts[Number(path[1])] : undefined
+    const unchosen = message.startsWith("Expected ") || message === "Value is not one of the allowed values."
+    const problem = (unchosen && FIELD_PROBLEMS[path.at(-1)!]) || message
+    return { account, label: account ? account.label : path.join("."), problem }
+  })
 }

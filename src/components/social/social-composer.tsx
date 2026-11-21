@@ -243,12 +243,10 @@ function SaveError({ error, accounts }: { error: Error; accounts: readonly Socia
   if (problems.length === 0) return <FormError>{errorMessage(error, "The post could not be saved")}</FormError>
   return (
     <ul role="alert" className="space-y-1 text-xs leading-5 text-destructive">
-      {problems.map(({ account, problem }, index) => (
+      {problems.map(({ account, label, problem }, index) => (
         <li key={index} className="flex items-center gap-1.5">
-          <PlatformLogo platform={account.platform} size={14} />
-          <span>
-            {account.label}: {problem}
-          </span>
+          {account && <PlatformLogo platform={account.platform} size={14} />}
+          <span>{[label, problem].filter(Boolean).join(": ")}</span>
         </li>
       ))}
     </ul>

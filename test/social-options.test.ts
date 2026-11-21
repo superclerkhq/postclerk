@@ -69,26 +69,33 @@ test("a refused post asks for each field against the account it belongs to", () 
     ],
     [instagram, youtube],
   )
+  const asked = (owner: SocialAccount, problem: string) => ({ account: owner, label: owner.label, problem })
   expect(problems).toEqual([
-    { account: instagram, problem: "Choose a format" },
-    { account: youtube, problem: "Add a title" },
-    { account: youtube, problem: "Choose a category" },
-    { account: youtube, problem: "Choose who can watch" },
-    { account: youtube, problem: "Answer whether it’s made for kids" },
-    { account: youtube, problem: "Answer whether it has altered or synthetic content" },
-    { account: youtube, problem: "Answer whether it has paid promotion" },
-    { account: youtube, problem: "Confirm the video follows YouTube’s Community Guidelines" },
+    asked(instagram, "Choose a format"),
+    asked(youtube, "Add a title"),
+    asked(youtube, "Choose a category"),
+    asked(youtube, "Choose who can watch"),
+    asked(youtube, "Answer whether it’s made for kids"),
+    asked(youtube, "Answer whether it has altered or synthetic content"),
+    asked(youtube, "Answer whether it has paid promotion"),
+    asked(youtube, "Confirm the video follows YouTube’s Community Guidelines"),
   ])
 })
 
-test("any other field in a destination shows the API's own message, and a field outside them none", () => {
-  const instagram = account("instagram", "@northwind")
+test("every other refused field keeps the API's own words, by its account or else its path", () => {
+  const youtube = account("youtube", "Northwind Heating")
+  const tooLong = "title must contain at most 100 characters"
   const problems = fieldProblems(
     [
-      { path: ["platforms", "0", "mediaItems", "0", "altText"], message: "Unknown field." },
+      { path: ["platforms", "0", "platformSpecificData", "title"], message: tooLong },
       { path: ["content"], message: "Value does not satisfy the maximum constraint 63206." },
+      { path: ["platforms"], message: "Value does not satisfy the maximum constraint 50." },
     ],
-    [instagram],
+    [youtube],
   )
-  expect(problems).toEqual([{ account: instagram, problem: "Unknown field." }])
+  expect(problems).toEqual([
+    { account: youtube, label: "Northwind Heating", problem: tooLong },
+    { account: undefined, label: "content", problem: "Value does not satisfy the maximum constraint 63206." },
+    { account: undefined, label: "platforms", problem: "Value does not satisfy the maximum constraint 50." },
+  ])
 })
